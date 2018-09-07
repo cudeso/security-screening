@@ -1,6 +1,6 @@
 @ECHO OFF
 
-:: Audit script v4
+:: Audit script v6
 ::  v1 : Start
 ::  v2 : Fixed fetching all users ; include localgroups
 ::           Removed bugs with jumping to wrong subs from v1
@@ -8,6 +8,7 @@
 ::  v4 : Fix spaces (line wrapping) for systeminfo_inventory.csv
 ::       Add whoami and gpresult data
 ::  v5 : Add copy etc/drivers/* files
+::  v6 : Add wmic for software list
 ::
 
 set debug=0
@@ -176,6 +177,8 @@ for /f "usebackq tokens=1,2,3 delims=:" %%i in (`sc query state^= all`) do (
   rem echo %%i %%j %%k
   if "%%i"=="SERVICE_NAME" call :%%i %%j %%k
 )
+
+wmic  /output:software_list_wmic.csv  product get * /format:"%WINDIR%\System32\wbem\en-US\csv"
 
 
 :: Step 8
