@@ -9,6 +9,7 @@
 ::       Add whoami and gpresult data
 ::  v5 : Add copy etc/drivers/* files
 ::  v6 : Add wmic for software list
+::  v7 : Add directory listing program file for software list, list of hotfixes, list of logicaldisks, fw dump
 ::
 
 set debug=0
@@ -132,6 +133,9 @@ route print > route_print.txt
 if %debug%==1 echo "fw"
 netsh firewall show state >> fw_config.txt
 netsh firewall show config >> fw_config.txt
+netsh advfirewall firewall show rule name=all > fwadv_config.txt
+netsh dump > fw_dump.txt
+
 if %debug%==1 echo "rpc"
 netsh rpc show >> rpc_config.txt
 
@@ -179,6 +183,11 @@ for /f "usebackq tokens=1,2,3 delims=:" %%i in (`sc query state^= all`) do (
 )
 
 wmic  /output:software_list_wmic.csv  product get * /format:"%WINDIR%\System32\wbem\en-US\csv"
+
+dir /a "C:\Program Files" > software_list_programfiles.txt
+dir /a "C:\Program Files (x86)" > software_list_programfiles_x86.txt
+
+wmic /output:software_list_hotfixes.csv qfe list /format:"%WINDIR%\System32\wbem\en-US\csv"
 
 
 :: Step 8
@@ -241,6 +250,11 @@ gpresult /r > gpresult_summary.txt
 :: Copy files from drivers/drivers_etc_networks
 copy %windir%\system32\drivers\etc\networks drivers_etc_networks
 copy %windir%\system32\drivers\etc\hosts drivers_etc_hosts
+
+
+:: Step 17
+:: List of logical disks 
+wmic /output:logicaldisk.csv logicaldisk get caption, description, providername, filesystem,volumeserialnumber /format:"%WINDIR%\System32\wbem\en-US\csv"
 
 
 :: END
