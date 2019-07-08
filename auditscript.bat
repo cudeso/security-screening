@@ -1,6 +1,6 @@
 @ECHO OFF
 
-:: Audit script v6
+:: Audit script v8
 ::  v1 : Start
 ::  v2 : Fixed fetching all users ; include localgroups
 ::           Removed bugs with jumping to wrong subs from v1
@@ -10,6 +10,8 @@
 ::  v5 : Add copy etc/drivers/* files
 ::  v6 : Add wmic for software list
 ::  v7 : Add directory listing program file for software list, list of hotfixes, list of logicaldisks, fw dump
+::  v8 : Add wmic for process and service list
+::       Add tasklist for loaded modules
 ::
 
 set debug=0
@@ -163,6 +165,7 @@ tasklist /v > tasklist_verbose.txt
 tasklist /SVC > tasklist_svc.txt
 tasklist /v /FO CSV > tasklist.csv
 tasklist /SVC /FO CSV > tasklist_svc.csv
+tasklist /M /FO CSV > tasklist_loaded_modules.csv
 
 :: Step 7
 :: Installed software
@@ -256,6 +259,16 @@ copy %windir%\system32\drivers\etc\hosts drivers_etc_hosts
 :: List of logical disks 
 wmic /output:logicaldisk.csv logicaldisk get caption, description, providername, filesystem,volumeserialnumber /format:"%WINDIR%\System32\wbem\en-US\csv"
 
+
+:: Step 18
+:: ProcessList via wmic
+wmic /output:process_list_wmic.csv  process get ProcessID, Caption, ExecutablePath, CreationDate, ParentProcessID, SessionId,CommandLine /format:"%WINDIR%\System32\wbem\en-US\csv"
+
+:: Service list
+wmic /output:service_list_wmic.csv  service get name, pathname, processid, startmode, state /format:"%WINDIR%\System32\wbem\en-US\csv"
+
+:: Logon list
+wmic /output:logon_wmic.csv logon list full /format:"%WINDIR%\System32\wbem\en-US\csv"
 
 :: END
 
