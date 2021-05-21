@@ -12,6 +12,7 @@
 ::  v7 : Add directory listing program file for software list, list of hotfixes, list of logicaldisks, fw dump
 ::  v8 : Add wmic for process and service list
 ::       Add tasklist for loaded modules
+::  v9 : Add copy browser info
 ::
 
 set debug=0
@@ -143,6 +144,7 @@ netsh rpc show >> rpc_config.txt
 
 if %debug%==1 echo "netstat"
 netstat -nao > netstat.txt
+netstat -naob > netstat_naob.txt
 
 if %debug%==1 echo "netstat stats"
 netstat -s > netstat_stats.txt
@@ -201,17 +203,21 @@ gpresult /r > gpresult.txt
 :: Step 9
 :: Log configuration setup
 wevtutil gl Application > log_config_application.txt
-wevtutil gli Application >> log_config_application.txt
+wevtutil gli Application >> log_status_application.txt
 wevtutil gl Security > log_config_security.txt
-wevtutil gli Security >> log_config_security.txt
+wevtutil gli Security >> log_status_security.txt
 wevtutil gl Setup > log_config_setup.txt
-wevtutil gli Setup >> log_config_setup.txt
+wevtutil gli Setup >> log_status_setup.txt
 wevtutil gl System > log_config_system.txt
-wevtutil gli System >> log_config_system.txt
+wevtutil gli System >> log_status_system.txt
 
 
 wevtutil qe Security > log_security.txt
 wevtutil qe System > log_system.txt
+
+wevtutil epl System system.evtx
+wevtutil epl Security security.evtx
+wevtutil epl Microsoft-Windows-RemoteDesktopServices-RdpCoreTS/Operational rdpcore.evtx
 
 
 :: Step 10
@@ -269,6 +275,15 @@ wmic /output:service_list_wmic.csv  service get name, pathname, processid, start
 
 :: Logon list
 wmic /output:logon_wmic.csv logon list full /format:"%WINDIR%\System32\wbem\en-US\csv"
+
+
+:: Step 19 
+:: Browser data
+xcopy "C:\Documents and Settings\%user%\Application Data\Mozilla\Firefox\Profiles\" firefox_profiles_user /E /H /C /I
+xcopy "C:\Users\%user%\AppData\Roaming\Mozilla\Firefox\Profiles\" firefox_profiles /E /H /C /I
+xcopy "C:\Users\%user%\AppData\Local\Google\Chrome\User Data\" chrome_userdata /E /H /C /I
+xcopy "C:\Documents and Settings\%user%\Local Settings\Application Data\Google\Chrome\User Data\" chrome_userdata_user /E /H /C /I
+
 
 :: END
 
