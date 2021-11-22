@@ -410,7 +410,7 @@ goto :processuser
   )
   set service_name=
 :: find all services by SERVICE_NAME, then list STATE, TYPE, DISPLAY_NAME, and "" (this is on the line below STATE)
-  for /f "usebackq tokens=1,2,3,4 delims=:, " %%s in (`sc queryex %1`) do (
+  for /f "usebackq tokens=1,2,3,4 delims=:, " %%s in (`sc queryex "%1"`) do (
     rem if "%%s"=="STATE" if not !%1!==!! echo %%v state of %1 is %%v
     if "%%s"=="PID" set service_pid=%%t
     if "%%s"=="SERVICE_NAME" set service_name=%%t
