@@ -1,6 +1,6 @@
 @ECHO OFF
 
-:: Audit script v8
+:: Audit script v10
 ::  v1 : Start
 ::  v2 : Fixed fetching all users ; include localgroups
 ::           Removed bugs with jumping to wrong subs from v1
@@ -13,6 +13,14 @@
 ::  v8 : Add wmic for process and service list
 ::       Add tasklist for loaded modules
 ::  v9 : Add copy browser info
+::  v10: Add date of exection (to step 2)
+::	     Handle user and group names with space (step 4)
+::       Export Application, Security event log (step 9)
+::		 Copy all (non-open) logs (step 9)
+::		 Use msinfo32 to gather systeminfo (IRQs etc) (step 2)
+::       Use sysinternal tools to query psinfo, autostart items and logged-on sessions (step 20)
+:: 		 Query active directory for users, groups, orgunits, sites, domains (step 21)
+::		 Delete audit directory and create a ZIP archive (step 99)
 ::
 
 set debug=0
@@ -33,12 +41,16 @@ cd %aud_dir%
 
 :: Step 2
 :: Operating system version and system information
+date /T > date_of_execution.txt
+time /T >> date_of_execution.txt
+
 if %debug%==1 echo "ver"
 ver > ver.txt
 
 if %debug%==1 echo "systeminfo"
 systeminfo > systeminfo.txt
 systeminfo /fo CSV > systeminfo.csv
+msinfo32 /categories +all /report systeminfo_msinfo.xls
 
 
 :: Step 3
@@ -187,6 +199,7 @@ for /f "usebackq tokens=1,2,3 delims=:" %%i in (`sc query state^= all`) do (
   if "%%i"=="SERVICE_NAME" call :%%i %%j %%k
 )
 
+if %debug%==1 echo "installed - wmic"
 wmic  /output:software_list_wmic.csv  product get * /format:"%WINDIR%\System32\wbem\en-US\csv"
 
 dir /a "C:\Program Files" > software_list_programfiles.txt
@@ -197,11 +210,13 @@ wmic /output:software_list_hotfixes.csv qfe list /format:"%WINDIR%\System32\wbem
 
 :: Step 8
 :: Policies
+if %debug%==1 echo "policies"
 gpresult /r > gpresult.txt
 
 
 :: Step 9
 :: Log configuration setup
+if %debug%==1 echo "log files"
 wevtutil gl Application > log_config_application.txt
 wevtutil gli Application >> log_status_application.txt
 wevtutil gl Security > log_config_security.txt
@@ -212,16 +227,32 @@ wevtutil gl System > log_config_system.txt
 wevtutil gli System >> log_status_system.txt
 
 
-wevtutil qe Security > log_security.txt
-wevtutil qe System > log_system.txt
+wevtutil qe Application > log_export_application.txt
+wevtutil qe Security > log_export_security.txt
+wevtutil qe System > log_export_system.txt
+wevtutil qe "Windows PowerShell" > log_export_powershell.txt
 
+wevtutil epl Application application.evtx
 wevtutil epl System system.evtx
 wevtutil epl Security security.evtx
 wevtutil epl Microsoft-Windows-RemoteDesktopServices-RdpCoreTS/Operational rdpcore.evtx
+wevtutil epl "Windows PowerShell" powershell.evtx
+
+wevtutil epl "Microsoft-Windows-Windows Firewall With Advanced Security/ConnectionSecurity" firewall_ConnectionSecurity.evtx
+wevtutil epl "Microsoft-Windows-Windows Firewall With Advanced Security/ConnectionSecurityVerbose" firewall_ConnectionSecurityVerbose.evtx
+wevtutil epl "Microsoft-Windows-Windows Firewall With Advanced Security/Firewall" firewall_Firewall.evtx
+wevtutil epl "Microsoft-Windows-Windows Firewall With Advanced Security/FirewallVerbose" firewall_FirewallVerbose.evtx
+
+wevtutil epl "Microsoft-Windows-Terminal-Services-RemoteConnectionManager/Operational" rdp_RemoteConnectionManager.evtx
+wevtutil epl "Microsoft-Windows-TerminalServices-LocalSessionManager/Operational" rdp_LocalSessionManager.evtx
+
+echo "Attempt to copy all log files"
+xcopy /E/H/C/I "%SystemRoot%\System32\Winevt\Logs" logs
 
 
 :: Step 10
 :: USB Information
+if %debug%==1 echo "USB"
 reg export "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Enum\USB" reg_enum_usb.txt
 copy %SYSTEMROOT%\inf\setupapi.app.log .
 copy %SYSTEMROOT%\inf\setupapi.dev.log .
@@ -229,22 +260,26 @@ copy %SYSTEMROOT%\inf\setupapi.dev.log .
 
 :: Step 11
 :: Driver Information
+if %debug%==1 echo "drivers"
 driverquery > driverquery.txt
 driverquery /v /FO CSV > driverquery.csv
 
 
 :: Step 12
 :: Get scheduled tasks 
+if %debug%==1 echo "scheduled tasks"
 schtasks /query /FO CSV /V >schtasks.csv
 
 
 :: Step 13
 :: Get startup items 
+if %debug%==1 echo "startup items"
 wmic /output:wmic_startup.csv startup list full /format:"%WINDIR%\System32\wbem\en-us\csv"
 
 
 :: Step 14
 :: Get whoami information
+if %debug%==1 echo "whoami"
 whoami /user /fo csv > whoami_user.csv
 whoami /groups /fo csv > whoami_groups.csv
 whoami /priv /fo csv > whoami_priv.csv
@@ -252,37 +287,69 @@ whoami /priv /fo csv > whoami_priv.csv
 
 :: Step 15
 :: Get group policy results
+if %debug%==1 echo "group policy"
 gpresult /r > gpresult_summary.txt
 
 
 :: Step 16
 :: Copy files from drivers/drivers_etc_networks
-copy %windir%\system32\drivers\etc\networks drivers_etc_networks
-copy %windir%\system32\drivers\etc\hosts drivers_etc_hosts
+if %debug%==1 echo "network drivers"
+copy %windir%\system32\drivers\etc\networks drivers_etc_networks.txt
+copy %windir%\system32\drivers\etc\hosts drivers_etc_hosts.txt
 
 
 :: Step 17
 :: List of logical disks 
+if %debug%==1 echo "logical disks"
 wmic /output:logicaldisk.csv logicaldisk get caption, description, providername, filesystem,volumeserialnumber /format:"%WINDIR%\System32\wbem\en-US\csv"
 
 
 :: Step 18
 :: ProcessList via wmic
+if %debug%==1 echo "process list wmic"
 wmic /output:process_list_wmic.csv  process get ProcessID, Caption, ExecutablePath, CreationDate, ParentProcessID, SessionId,CommandLine /format:"%WINDIR%\System32\wbem\en-US\csv"
 
 :: Service list
+if %debug%==1 echo "service list wmic"
 wmic /output:service_list_wmic.csv  service get name, pathname, processid, startmode, state /format:"%WINDIR%\System32\wbem\en-US\csv"
 
 :: Logon list
+if %debug%==1 echo "logon list wmic"
 wmic /output:logon_wmic.csv logon list full /format:"%WINDIR%\System32\wbem\en-US\csv"
 
 
 :: Step 19 
 :: Browser data
+if %debug%==1 echo "browser data"
 xcopy "C:\Documents and Settings\%user%\Application Data\Mozilla\Firefox\Profiles\" firefox_profiles_user /E /H /C /I
 xcopy "C:\Users\%user%\AppData\Roaming\Mozilla\Firefox\Profiles\" firefox_profiles /E /H /C /I
 xcopy "C:\Users\%user%\AppData\Local\Google\Chrome\User Data\" chrome_userdata /E /H /C /I
 xcopy "C:\Documents and Settings\%user%\Local Settings\Application Data\Google\Chrome\User Data\" chrome_userdata_user /E /H /C /I
+
+
+:: Step 20
+:: Sysinternal tools
+if %debug%==1 echo "sysinternals"
+"../supporttools/psinfo.exe" /accepteula -h -d -s -c  > systeminfo_psinfo.csv
+"../supporttools/autorunsc64.exe" /accepteula -c > sysinternals_autoruns.csv
+"../supporttools/PsLoggedon64.exe" /accepteula > psloggedon.txt
+
+
+:: Step 21 
+:: AD-data
+mkdir adquery_logs
+"../supporttools/csvde.exe" -v -r "(objectClass=user)" -n -j adquery_logs\ -f adquery_users.csv
+"../supporttools/csvde.exe" -v -r "(objectClass=group)" -n -j adquery_logs\ -f adquery_group.csv
+"../supporttools/csvde.exe" -v -r "(objectClass=organizationalUnit)" -n -j adquery_logs\ -f adquery_orgunits.csv
+"../supporttools/csvde.exe" -v -r "(objectClass=domain)" -n -j adquery_logs\ -f adquery_domain.csv
+"../supporttools/csvde.exe" -v -r "(objectClass=site)" -n -j adquery_logs\ -f adquery_site.csv
+
+
+:: Step 99
+:: Make a ZIP archive
+cd ..
+"supporttools/7za.exe" a -bd -tzip %aud_dir%.zip %aud_dir%
+rmdir /S /Q %aud_dir%
 
 
 :: END
@@ -298,13 +365,13 @@ set mygroup2=%mygroup:~1,200%
 
 echo %mygroup2% >> net_localgroup_detail.txt
 echo ------------- >>  net_localgroup_detail.txt
-net localgroup %mygroup2% >> net_localgroup_detail.txt
+net localgroup "%mygroup2%" >> net_localgroup_detail.txt
 echo >> net_localgroup_detail.txt
-
+exit /b
 
 :processuser
 if {%1}=={} goto :end_user
-net user %1 >> users_detail.txt
+net user "%1" >> users_detail.txt
 
 shift
 goto :processuser 
@@ -354,4 +421,3 @@ goto :processuser
     rem echo "%%s", "%%t", "%%u", "%%v"
   )
   echo %service_pid%, %service_state%, %service_type%, %service_name%, %service_properties%, %service_display_name% >> SERVICE_list.txt
-
