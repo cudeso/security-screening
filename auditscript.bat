@@ -116,9 +116,9 @@ if %debug%==1 echo "net use"
 net use > net_use.txt
 if %debug%==1 echo "net view"
 net view > net_view.txt
-if %debug%==1 echo "net use"
+if %debug%==1 echo "net config server"
 net config server >> net_config.txt
-if %debug%==1 echo "net use"
+if %debug%==1 echo "net config workstation"
 net config workstation >> net_config.txt
 if %debug%==1 echo "net localgroup"
 net localgroup >> net_localgroup.txt
@@ -200,18 +200,22 @@ for /f "usebackq tokens=1,2,3 delims=:" %%i in (`sc query state^= all`) do (
 )
 
 if %debug%==1 echo "installed - wmic"
-wmic  /output:software_list_wmic.csv  product get * /format:"%WINDIR%\System32\wbem\en-US\csv"
+:: wmic  /output:software_list_wmic.csv  product get * /format:"%WINDIR%\System32\wbem\en-US\csv"
+wmic  /output:software_list_wmic.csv  product get * /format:csv
 
 dir /a "C:\Program Files" > software_list_programfiles.txt
 dir /a "C:\Program Files (x86)" > software_list_programfiles_x86.txt
 
-wmic /output:software_list_hotfixes.csv qfe list /format:"%WINDIR%\System32\wbem\en-US\csv"
+wmic /output:software_list_hotfixes.csv qfe list /format:csv
 
 
 :: Step 8
 :: Policies
 if %debug%==1 echo "policies"
 gpresult /r > gpresult.txt
+gpresult /x gpresult.xml
+gpresult /h gpresult.html
+
 
 
 :: Step 9
@@ -274,8 +278,8 @@ schtasks /query /FO CSV /V >schtasks.csv
 :: Step 13
 :: Get startup items 
 if %debug%==1 echo "startup items"
-wmic /output:wmic_startup.csv startup list full /format:"%WINDIR%\System32\wbem\en-us\csv"
-
+::wmic /output:wmic_startup.csv startup list full /format:"%WINDIR%\System32\wbem\en-us\csv"
+wmic /output:wmic_startup.csv startup list full /format:csv
 
 :: Step 14
 :: Get whoami information
@@ -287,8 +291,8 @@ whoami /priv /fo csv > whoami_priv.csv
 
 :: Step 15
 :: Get group policy results
-if %debug%==1 echo "group policy"
-gpresult /r > gpresult_summary.txt
+:: if %debug%==1 echo "group policy"
+:: gpresult /r > gpresult_summary.txt
 
 
 :: Step 16
@@ -301,21 +305,21 @@ copy %windir%\system32\drivers\etc\hosts drivers_etc_hosts.txt
 :: Step 17
 :: List of logical disks 
 if %debug%==1 echo "logical disks"
-wmic /output:logicaldisk.csv logicaldisk get caption, description, providername, filesystem,volumeserialnumber /format:"%WINDIR%\System32\wbem\en-US\csv"
+wmic /output:logicaldisk.csv logicaldisk get caption, description, providername, filesystem,volumeserialnumber /format:csv
 
 
 :: Step 18
 :: ProcessList via wmic
 if %debug%==1 echo "process list wmic"
-wmic /output:process_list_wmic.csv  process get ProcessID, Caption, ExecutablePath, CreationDate, ParentProcessID, SessionId,CommandLine /format:"%WINDIR%\System32\wbem\en-US\csv"
+wmic /output:process_list_wmic.csv  process get ProcessID, Caption, ExecutablePath, CreationDate, ParentProcessID, SessionId,CommandLine /format:csv
 
 :: Service list
 if %debug%==1 echo "service list wmic"
-wmic /output:service_list_wmic.csv  service get name, pathname, processid, startmode, state /format:"%WINDIR%\System32\wbem\en-US\csv"
+wmic /output:service_list_wmic.csv  service get name, pathname, processid, startmode, state /format:csv
 
 :: Logon list
 if %debug%==1 echo "logon list wmic"
-wmic /output:logon_wmic.csv logon list full /format:"%WINDIR%\System32\wbem\en-US\csv"
+wmic /output:logon_wmic.csv logon list full /format:csv
 
 
 :: Step 19 
