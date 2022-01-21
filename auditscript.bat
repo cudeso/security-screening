@@ -23,7 +23,7 @@
 ::		 Delete audit directory and create a ZIP archive (step 99)
 ::
 
-set debug=0
+set debug=1
 
 :: Step 1
 :: Get the computer name
@@ -291,8 +291,7 @@ whoami /priv /fo csv > whoami_priv.csv
 
 :: Step 15
 :: Get group policy results
-:: if %debug%==1 echo "group policy"
-:: gpresult /r > gpresult_summary.txt
+:: Already fetched in a previous setup
 
 
 :: Step 16
@@ -334,7 +333,7 @@ xcopy "C:\Documents and Settings\%user%\Local Settings\Application Data\Google\C
 :: Step 20
 :: Sysinternal tools
 if %debug%==1 echo "sysinternals"
-"../supporttools/psinfo.exe" /accepteula -h -d -s -c  > systeminfo_psinfo.csv
+"../supporttools/psinfo64.exe" /accepteula -h -d -s -c  > systeminfo_psinfo.csv
 "../supporttools/autorunsc64.exe" /accepteula -c > sysinternals_autoruns.csv
 "../supporttools/PsLoggedon64.exe" /accepteula > psloggedon.txt
 
