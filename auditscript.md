@@ -1,3 +1,36 @@
+# Workflow
+
+* Execution of Windows-native commands
+* * Output is in txt or csv
+* Copy all (non-open) event log files
+* * Files stored in a directory audit_ with system name
+* Also executes some tools from Sysinternals
+* * Make sure that they are in the folder **supporttools**
+* * * autorunsc64.exe
+* * * csvde.exe
+* * * psinfo64.exe
+* * * psloggedon64.exe
+* Then ZIPs all files in the directory audit_
+* Deletes the audit_ folder
+
+
+# Usage
+
+1. Copy folder security-screening to USB
+2. Insert USB in machine to audit
+3. Open Explorer, go to USB drive
+4. Right click on "auditscript.bat"
+5. Choose "Run as administrator"
+6. Let the script run until it's completely finished (the new "bat" window will close). This can take a long (>15 minutes) time
+7. Verify that there is a file "audit_<SYSTEMNAME>.zip"
+8. Right click on the USB and eject the USB drive
+
+The zip file "audit_<SYSTEMNAME>.zip" contains all the evidences.
+
+
+# Script
+
+```
 @ECHO OFF
 
 :: Audit script v10
@@ -22,9 +55,21 @@
 :: 		 Query active directory for users, groups, orgunits, sites, domains (step 21)
 ::		 Delete audit directory and create a ZIP archive (step 99)
 ::
+```
 
+## Debug
+Set this value to **1** if you want to have the progress of the screening displayed in the output screen. This does not negatively impact the performance, it's just additional text output.
+
+```
 set debug=1
+```
 
+## Basic system, user and network information
+
+Gather basic system, user and network information. 
+
+
+```
 :: Step 1
 :: Get the computer name
 :: Needed to create the output directory
@@ -207,17 +252,25 @@ dir /a "C:\Program Files" > software_list_programfiles.txt
 dir /a "C:\Program Files (x86)" > software_list_programfiles_x86.txt
 
 wmic /output:software_list_hotfixes.csv qfe list /format:csv
+```
 
+## Group Policies
+Querying the Group Policies can require a lot of time, especially on servers. This function is now disabled by default. Remove the "::" in front of gpresult to enable it again.
 
+```
 :: Step 8
 :: Policies
 ::if %debug%==1 echo "policies"
 ::gpresult /r > gpresult.txt
 ::gpresult /x gpresult.xml
 ::gpresult /h gpresult.html
+```
 
+## Fetch the log configuration
 
+Fetch the log configuration and exports some log files to text. As a final action, it also copies all the evtx files to a seperate directory (log) in the audit folder.
 
+```
 :: Step 9
 :: Log configuration setup
 if %debug%==1 echo "log files"
@@ -252,8 +305,9 @@ wevtutil epl "Microsoft-Windows-TerminalServices-LocalSessionManager/Operational
 
 echo "Attempt to copy all log files"
 xcopy /E/H/C/I "%SystemRoot%\System32\Winevt\Logs" logs
+```
 
-
+```
 :: Step 10
 :: USB Information
 if %debug%==1 echo "USB"
@@ -319,8 +373,13 @@ wmic /output:service_list_wmic.csv  service get name, pathname, processid, start
 :: Logon list
 if %debug%==1 echo "logon list wmic"
 wmic /output:logon_wmic.csv logon list full /format:csv
+```
 
+## Browser data
 
+Get the browser data for Firefox and Chrome.
+
+```
 :: Step 19 
 :: Browser data
 if %debug%==1 echo "browser data"
@@ -328,16 +387,27 @@ xcopy "C:\Documents and Settings\%user%\Application Data\Mozilla\Firefox\Profile
 xcopy "C:\Users\%user%\AppData\Roaming\Mozilla\Firefox\Profiles\" firefox_profiles /E /H /C /I
 xcopy "C:\Users\%user%\AppData\Local\Google\Chrome\User Data\" chrome_userdata /E /H /C /I
 xcopy "C:\Documents and Settings\%user%\Local Settings\Application Data\Google\Chrome\User Data\" chrome_userdata_user /E /H /C /I
+```
 
+## Sysinternals
 
+Execute the tools from sysinternals.
+This gets additional system information, lists the applications that are automatically started and who recently logged on to the system.
+
+```
 :: Step 20
 :: Sysinternal tools
 if %debug%==1 echo "sysinternals"
 "../supporttools/psinfo64.exe" /accepteula -h -d -s -c  > systeminfo_psinfo.csv
 "../supporttools/autorunsc64.exe" /accepteula -c > sysinternals_autoruns.csv
 "../supporttools/PsLoggedon64.exe" /accepteula > psloggedon.txt
+```
 
+## Active Directory
 
+Execute some AD queryies to get the users, groups, domains and sites.
+
+```
 :: Step 21 
 :: AD-data
 mkdir adquery_logs
@@ -346,14 +416,24 @@ mkdir adquery_logs
 "../supporttools/csvde.exe" -v -r "(objectClass=organizationalUnit)" -n -j adquery_logs\ -f adquery_orgunits.csv
 "../supporttools/csvde.exe" -v -r "(objectClass=domain)" -n -j adquery_logs\ -f adquery_domain.csv
 "../supporttools/csvde.exe" -v -r "(objectClass=site)" -n -j adquery_logs\ -f adquery_site.csv
+```
 
+## ZIP archive
 
+Create a ZIP archive and remove the audit directory.
+
+```
 :: Step 99
 :: Make a ZIP archive
 cd ..
 "supporttools/7za.exe" a -bd -tzip %aud_dir%.zip %aud_dir%
 rmdir /S /Q %aud_dir%
+```
 
+
+## End
+
+```
 
 :: END
 
@@ -424,3 +504,4 @@ goto :processuser
     rem echo "%%s", "%%t", "%%u", "%%v"
   )
   echo %service_pid%, %service_state%, %service_type%, %service_name%, %service_properties%, %service_display_name% >> SERVICE_list.txt
+```
