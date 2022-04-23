@@ -34,7 +34,9 @@ FOR /f "tokens=1,2 delims=:" %%a in ('echo %tempsuffix%') do set dnssuffix=%%b
 SET FQDN=%COMPUTERNAME%.%DNSSUFFIX:~1%
 
 ECHO Server FQDN: %FQDN%
-set aud_dir=audit_%FQDN%
+::set aud_dir=audit_%COMPUTERNAME%
+set script_dir=%~dp0
+set aud_dir=%script_dir%audit_%COMPUTERNAME%
 mkdir %aud_dir%
 cd %aud_dir%
 
@@ -333,29 +335,31 @@ xcopy "C:\Documents and Settings\%user%\Local Settings\Application Data\Google\C
 :: Step 20
 :: Sysinternal tools
 if %debug%==1 echo "sysinternals"
-"../supporttools/psinfo64.exe" /accepteula -h -d -s -c  > systeminfo_psinfo.csv
-"../supporttools/autorunsc64.exe" /accepteula -c > sysinternals_autoruns.csv
-"../supporttools/PsLoggedon64.exe" /accepteula > psloggedon.txt
+"%script_dir%supporttools\psinfo64.exe" /accepteula -h -d -s -c  > systeminfo_psinfo.csv
+"%script_dir%supporttools\autorunsc64.exe" /accepteula -c > sysinternals_autoruns.csv
+"%script_dir%supporttools\PsLoggedon64.exe" /accepteula > psloggedon.txt
 
 
 :: Step 21 
 :: AD-data
 mkdir adquery_logs
-"../supporttools/csvde.exe" -v -r "(objectClass=user)" -n -j adquery_logs\ -f adquery_users.csv
-"../supporttools/csvde.exe" -v -r "(objectClass=group)" -n -j adquery_logs\ -f adquery_group.csv
-"../supporttools/csvde.exe" -v -r "(objectClass=organizationalUnit)" -n -j adquery_logs\ -f adquery_orgunits.csv
-"../supporttools/csvde.exe" -v -r "(objectClass=domain)" -n -j adquery_logs\ -f adquery_domain.csv
-"../supporttools/csvde.exe" -v -r "(objectClass=site)" -n -j adquery_logs\ -f adquery_site.csv
+"%script_dir%supporttools\csvde.exe" -v -r "(objectClass=user)" -n -j adquery_logs\ -f adquery_users.csv
+"%script_dir%supporttools\csvde.exe" -v -r "(objectClass=group)" -n -j adquery_logs\ -f adquery_group.csv
+"%script_dir%supporttools\csvde.exe" -v -r "(objectClass=organizationalUnit)" -n -j adquery_logs\ -f adquery_orgunits.csv
+"%script_dir%supporttools\csvde.exe" -v -r "(objectClass=domain)" -n -j adquery_logs\ -f adquery_domain.csv
+"%script_dir%supporttools\csvde.exe" -v -r "(objectClass=site)" -n -j adquery_logs\ -f adquery_site.csv
 
 
 :: Step 99
 :: Make a ZIP archive
-cd ..
-"supporttools/7za.exe" a -bd -tzip %aud_dir%.zip %aud_dir%
+::cd ..
+"%script_dir%supporttools\7za.exe" a -bd -tzip %aud_dir%.zip %aud_dir%
+cd %script_dir%
 rmdir /S /Q %aud_dir%
 
 
 :: END
+pause 
 
 exit /b
 
@@ -364,13 +368,15 @@ exit /b
 
 :processlocalgroup 
 set mygroup=%*
-set mygroup2=%mygroup:~1,200%
-
-echo %mygroup2% >> net_localgroup_detail.txt
-echo ------------- >>  net_localgroup_detail.txt
-net localgroup "%mygroup2%" >> net_localgroup_detail.txt
-echo >> net_localgroup_detail.txt
-exit /b
+set prefix_group=%mygroup:~0,1%
+if %prefix_group% == * (
+	set mygroup2=%mygroup:~1,200%
+	echo %mygroup2% >> net_localgroup_detail.txt
+	echo ------------- >>  net_localgroup_detail.txt
+	net localgroup "%mygroup2%" >> net_localgroup_detail.txt
+	echo >> net_localgroup_detail.txt
+)
+exit /b 
 
 :processuser
 if {%1}=={} goto :end_user
