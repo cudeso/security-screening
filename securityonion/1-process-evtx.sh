@@ -1,6 +1,18 @@
 #!/usr/bin/bash
 
-LOG_FILES=("Windows PowerShell.evtx" "Security.evtx" "System.evtx" "Microsoft-Windows-WinRM%4Operational.evtx" "Microsoft-Windows-Windows Firewall With Advanced Security%4Firewall.evtx" "Microsoft-Windows-Windows Defender%4Operational.evtx" "Microsoft-Windows-TerminalServices-RemoteConnectionManager%4Operational.evtx" "Microsoft-Windows-TerminalServices-RDPClient%4Operational.evtx" "Microsoft-Windows-TaskScheduler%4Operational.evtx" "Microsoft-Windows-TaskScheduler%4Operational.evtx" "Microsoft-Windows-RemoteDesktopServices-RdpCoreTS%4Operational.evtx" "Microsoft-Windows-Sysmon%4Operational.evtx" "Microsoft-Windows-PowerShell%4Operational.evtx")
+LOG_FILES=(     "Windows PowerShell.evtx" 
+                "Security.evtx" "System.evtx" 
+                "Microsoft-Windows-WinRM%4Operational.evtx" 
+                "Microsoft-Windows-Windows Firewall With Advanced Security%4Firewall.evtx" 
+                "Microsoft-Windows-Windows Defender%4Operational.evtx" 
+                "Microsoft-Windows-TerminalServices-RemoteConnectionManager%4Operational.evtx" 
+                "Microsoft-Windows-TerminalServices-RDPClient%4Operational.evtx" 
+                "Microsoft-Windows-TaskScheduler%4Operational.evtx" 
+                "Microsoft-Windows-TaskScheduler%4Operational.evtx" 
+                "Microsoft-Windows-RemoteDesktopServices-RdpCoreTS%4Operational.evtx" 
+                "Microsoft-Windows-Sysmon%4Operational.evtx" 
+                "Microsoft-Windows-PowerShell%4Operational.evtx"
+)
 IFS=""
 
 BASE_PATH="/home/so/screening/output"
