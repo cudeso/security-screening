@@ -162,7 +162,7 @@ Import the Kibana saved objects to have the different visualisations available. 
 
 Verify that the screening dashboard has been imported by going to Home, Analytics and choose **Dashboard**. Search for the security screenings dashbaoard.
 
-# Chainsaw 
+## Chainsaw 
 
 Make sure that the full version of Chainsaw, including the detection rules, is in `security-screening/securityonion/chainsaw`. 
 
@@ -173,6 +173,10 @@ Afterwards make sure that the Chainsaw binary is executable.
 ```
 chmod +x security-screening/securityonion/chainsaw/chainsaw_x86_64-unknown-linux-mus
 ```
+
+## Directories
+
+Create a directory `input` and `output` in security-screening/securityonion
 
 # Execute processing of security screening files
 
