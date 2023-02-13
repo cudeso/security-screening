@@ -1,3 +1,5 @@
+REM https://support.microsoft.com/en-us/help/2608523/how-to-clean-a-corrupted-silverlight-installation-and-then-reinstall-s
+
 reg delete HKLM\Software\Microsoft\Silverlight /f
 reg delete HKEY_CLASSES_ROOT\Installer\Products\D7314F9862C648A4DB8BE2A5B47BE100 /f
 reg delete HKEY_LOCAL_MACHINE\SOFTWARE\Classes\Installer\Products\D7314F9862C648A4DB8BE2A5B47BE100 /f
