@@ -23,6 +23,9 @@
 ::		 Delete audit directory and create a ZIP archive (step 99)
 ::
 
+
+
+#### Primary Dns: Zelzate.local ::: check FQDN
 set debug=1
 
 :: Step 1
@@ -37,8 +40,8 @@ ECHO Server FQDN: %FQDN%
 ::set aud_dir=audit_%COMPUTERNAME%
 set script_dir=%~dp0
 set aud_dir=%script_dir%audit_%COMPUTERNAME%
-mkdir %aud_dir%
-cd %aud_dir%
+mkdir "%aud_dir%"
+cd "%aud_dir%"
 
 
 :: Step 2
@@ -353,9 +356,9 @@ mkdir adquery_logs
 :: Step 99
 :: Make a ZIP archive
 ::cd ..
-"%script_dir%supporttools\7za.exe" a -bd -tzip %aud_dir%.zip %aud_dir%
-cd %script_dir%
-rmdir /S /Q %aud_dir%
+"%script_dir%supporttools\7za.exe" a -bd -tzip "%aud_dir%.zip" "%aud_dir%"
+cd "%script_dir%"
+rmdir /S /Q "%aud_dir%"
 
 
 :: END
