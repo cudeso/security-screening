@@ -158,7 +158,7 @@ Verify in Elastic that the index has been created under Stack Management, Index 
 
 ## Import the Kibana saved objects
 
-Import the Kibana saved objects to have the different visualisations available. Under Stack Management, Kibana choose **Saved Objects**. Then click **Import**, select the file `screening_kibana_export.ndjson` and choose to check for existing objects and overwrite conflicts. Then click on **Import**.
+Import the Kibana saved objects to have the different visualisations available. Under Stack Management, Kibana choose **Saved Objects**. Then click **Import**, select the file `screening_kibana_export.ndjson` and choose **Check for existing objects** and **Automatically overwrite conflicts**. Then click on **Import**.
 
 Verify that the screening dashboard has been imported by going to Home, Analytics and choose **Dashboard**. Search for the security screenings dashbaoard.
 
@@ -198,7 +198,26 @@ Create a directory `input` and `output` in security-screening/securityonion
 
 `venv/bin/python process-security-screening.py --deletelogs FQDN`
 
-# Demo Elastic queries
+# Security Screening Logs
+
+Import `screening_log_details_kibana_export.ndjson` as described under *Import the Kibana saved objects*.
+
+The new dashboards all start with *security screening logs*.
+
+![assets/logs_start.png](assets/users.png)
+
+![assets/logs_start.png](assets/logs_start.png)
+
+![assets/logs_start.png](assets/logs_users.png)
+
+![assets/logs_start.png](assets/logs_logs.png)
+
+![assets/logs_start.png](assets/logs_tasks.png)
+
+![assets/logs_start.png](assets/logs_scripts.png)
+
+
+# Elastic queries
 
 Review the Windows logs under Home, Analytics, **Discover**. Make sure to select the view **\*:so-\*** and select the correct time frame (for example the last year.) 
 
