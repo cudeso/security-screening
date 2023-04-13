@@ -1,16 +1,20 @@
 - [Security Onion for Security Screening](#security-onion-for-security-screening)
 - [Prepare SecurityOnion for security screening](#prepare-securityonion-for-security-screening)
   - [Download ISO](#download-iso)
-  - [Prepare VM](#prepare-vm)
+  - [Prepare](#prepare)
+    - [Prepare VM](#prepare-vm)
+    - [Prepare Analyst workstation](#prepare-analyst-workstation)
+    - [Processing ISO](#processing-iso)
   - [Install VM](#install-vm)
   - [Set the correct keyboard](#set-the-correct-keyboard)
   - [Install GUI for analyst](#install-gui-for-analyst)
   - [Firewall access](#firewall-access)
   - [Create an Elastic API key](#create-an-elastic-api-key)
   - [Elastic interface](#elastic-interface)
-  - [Transfer files](#transfer-files)
   - [Deleting older indexes](#deleting-older-indexes)
+  - [Security Onion security advisories](#security-onion-security-advisories)
 - [Setup Processing environment](#setup-processing-environment)
+  - [Install tooling](#install-tooling)
   - [Security Onion sudo](#security-onion-sudo)
   - [Python virtual environment](#python-virtual-environment)
   - [Configuration file](#configuration-file)
@@ -36,9 +40,11 @@ Use Security Onion to represent data coming from a security screening. This will
 
 ## Download ISO
 
-Download the latest ISO from [https://github.com/Security-Onion-Solutions/securityonion/blob/master/VERIFY_ISO.md](https://github.com/Security-Onion-Solutions/securityonion/blob/master/VERIFY_ISO.md) and verify its signature as described by Security Onion.
+Download the latest ISO from [https://github.com/Security-Onion-Solutions/securityonion/blob/master/VERIFY_ISO.md](https://github.com/Security-Onion-Solutions/securityonion/blob/master/VERIFY_ISO.md) and verify its signature as described by Security Onion. Store the ISO on the datastore of the ESXi (or where the VM is hosed).
 
-## Prepare VM
+## Prepare
+
+### Prepare VM
 
 Setup a new VM with these specifications
 
@@ -47,12 +53,31 @@ Setup a new VM with these specifications
 - Memory: Minimum **24GB** RAM
 - Disk: Minimum **250GB** disk space
 - Two network interfaces
-- Point the CD-ROM to the ISO file
+- Point the CD-ROM to the Security Onion ISO file
 
-For the installation you also need
-- One fixed IPv4 address
+For the installation also need
+- One **fixed** IPv4 address
 - A user account for Security Onion ('admin')
 - A user account for the web interface of Security Onion (an e-mail address)
+- Choose a strong password for both accounts. Remember that during installation the keyboard layout is querty.
+
+Configure these firewall rules on your network
+- Inbound SSH (tcp/22) from the administration host
+- Inbound HTTPS (tcp/443) for all other users that require access to the web interface
+
+### Prepare Analyst workstation
+
+You need an SSH client on the analyst workstation that you use for administrating Security Onion. It is advised to use MobaXTerm which can be downloaded from [https://mobaxterm.mobatek.net/download-home-edition.html](https://mobaxterm.mobatek.net/download-home-edition.html).
+
+Download MobaXTerm from the analyst workstation.
+
+### Processing ISO
+
+Because the VM is going to be airgapped (without Internet connectivity) you need a way to get the tools used for processing the logs on the VM.
+
+Create an ISO with the content of this repository, together with a prepared Python virtual environment. Store this ISO on the datastore of the ESXi (or where the VM is hosed).
+
+1. Create an ISO image of the tar.gz with all data: `mkisofs -o security-screening.iso security-screening.tar.gz`
 
 ## Install VM
 
@@ -121,21 +146,24 @@ Change the Elastic interface to reflect your preferences. Within the Discover ta
 - Enable **Document Explorer or classic view**
 - Search for Dark Mode, disable **Dark mode**
 
-## Transfer files
-
-1. Create an ISO image of the tar.gz with all data: `mkisofs -o security-screening.iso security-screening.tar.gz`
-2. Mount ISO in VM
-3. Copy tar.gz to new VM, expand in `security-screening/securityonion`
-4. If needed, replace the references to the older username in the venv
-   1. `cd security-screening/securityonion/scripts/venv ; find . -type f | xargs sed -i 's/olduser/analyst/g'`
-
 ## Deleting older indexes
 
 The management of old data in Elastic is done with what is called 'Curator'. This is configured in `/opt/so/saltstack/local/pillar/global.sls`. Curator defaults to closing indices older than 30 days and deleting indeces older than a year.
 
 Edit `/opt/so/saltstack/local/pillar/global.sls` and under elasticsearch/index_settings/so-beats change `close` to 180.
 
+## Security Onion security advisories
+
+Security Onion publishes security advisories at [https://github.com/Security-Onion-Solutions/securityonion/security/advisories](https://github.com/Security-Onion-Solutions/securityonion/security/advisories).
+
 # Setup Processing environment
+
+## Install tooling 
+
+1. Mount ISO in VM
+2. Copy tar.gz to new VM, expand in `security-screening/securityonion`
+3. If needed, replace the references to the older username in the venv
+   - `cd security-screening/securityonion/scripts/venv ; find . -type f | xargs sed -i 's/olduser/analyst/g'`
 
 ## Security Onion sudo
 
@@ -148,7 +176,7 @@ analyst ALL=(root) NOPASSWD:/usr/bin/rm
 
 ## Python virtual environment
 
-Create the Python virtual environment
+Create the Python virtual environment (or use the one from ISO)
 
 ```
 python3 -m venv venv
@@ -173,7 +201,6 @@ urllib3
 ## Configuration file
 
 Update `elasticsearch_api_key` in `config.py` with the previously created API key.
-
 
 ## Enable the Python virtual environment
 
@@ -227,10 +254,7 @@ Create a directory `input` and `output` in security-screening/securityonion
 
 `venv/bin/python process-security-screening.py --listscreening go`
 
-
 `venv/bin/python process-security-screening.py --listscreeninglogs go`
-
-
 
 ## Delete screening results
 
