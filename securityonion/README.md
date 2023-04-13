@@ -1,3 +1,31 @@
+- [Security Onion for Security Screening](#security-onion-for-security-screening)
+- [Prepare SecurityOnion for security screening](#prepare-securityonion-for-security-screening)
+  - [Download ISO](#download-iso)
+  - [Prepare VM](#prepare-vm)
+  - [Install VM](#install-vm)
+  - [Set the correct keyboard](#set-the-correct-keyboard)
+  - [Install GUI for analyst](#install-gui-for-analyst)
+  - [Firewall access](#firewall-access)
+  - [Create an Elastic API key](#create-an-elastic-api-key)
+  - [Elastic interface](#elastic-interface)
+  - [Transfer files](#transfer-files)
+  - [Deleting older indexes](#deleting-older-indexes)
+- [Setup Processing environment](#setup-processing-environment)
+  - [Security Onion sudo](#security-onion-sudo)
+  - [Python virtual environment](#python-virtual-environment)
+  - [Configuration file](#configuration-file)
+  - [Enable the Python virtual environment](#enable-the-python-virtual-environment)
+  - [Import the Kibana saved objects](#import-the-kibana-saved-objects)
+  - [Chainsaw](#chainsaw)
+  - [Directories](#directories)
+- [Execute processing of security screening files](#execute-processing-of-security-screening-files)
+  - [Process](#process)
+  - [List screening results](#list-screening-results)
+  - [Delete screening results](#delete-screening-results)
+  - [Delete log files](#delete-log-files)
+- [Security Screening Logs](#security-screening-logs)
+- [Elastic queries](#elastic-queries)
+
 # Security Onion for Security Screening
 
 Use Security Onion to represent data coming from a security screening. This will display the asset information from the auditscript, as well as import the most import Windows (EVTX) log files in Security Onion.
@@ -101,6 +129,12 @@ Change the Elastic interface to reflect your preferences. Within the Discover ta
 4. If needed, replace the references to the older username in the venv
    1. `cd security-screening/securityonion/scripts/venv ; find . -type f | xargs sed -i 's/olduser/analyst/g'`
 
+## Deleting older indexes
+
+The management of old data in Elastic is done with what is called 'Curator'. This is configured in `/opt/so/saltstack/local/pillar/global.sls`. Curator defaults to closing indices older than 30 days and deleting indeces older than a year.
+
+Edit `/opt/so/saltstack/local/pillar/global.sls` and under elasticsearch/index_settings/so-beats change `close` to 180.
+
 # Setup Processing environment
 
 ## Security Onion sudo
@@ -189,10 +223,26 @@ Create a directory `input` and `output` in security-screening/securityonion
 4. Execute the Python script
    1. `venv/bin/python process-security-screening.py --process ../input/audit_COMPUTER.zip`
 
+## List screening results
+
+`venv/bin/python process-security-screening.py --listscreening go`
+
+
+`venv/bin/python process-security-screening.py --listscreeninglogs go`
+
+
 
 ## Delete screening results
 
+Delete screening results:
+
 `venv/bin/python process-security-screening.py --deletescreening HOSTNAME`
+
+Delete logs from screening:
+
+`venv/bin/python process-security-screening.py --deletescreeninglogs HOSTNAME`
+
+Also do not forget to delete the files in `input` and `output`.
 
 ## Delete log files
 

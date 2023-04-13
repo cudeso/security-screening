@@ -25,7 +25,6 @@
 
 
 
-#### Primary Dns: Zelzate.local ::: check FQDN
 set debug=1
 
 :: Step 1

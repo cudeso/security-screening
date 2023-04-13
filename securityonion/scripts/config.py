@@ -13,11 +13,11 @@ config = {
                                 "Microsoft-Windows-TerminalServices-RemoteConnectionManager%4Operational.evtx",
                                 "Microsoft-Windows-TerminalServices-RDPClient%4Operational.evtx",
                                 "Microsoft-Windows-TaskScheduler%4Operational.evtx",
-                                "Microsoft-Windows-TaskScheduler%4Operational.evtx",
                                 "Microsoft-Windows-RemoteDesktopServices-RdpCoreTS%4Operational.evtx",
                                 "Microsoft-Windows-Sysmon%4Operational.evtx",
                                 "Microsoft-Windows-PowerShell%4Operational.evtx"
                                 ],
+    "evtx_hashed_to_skip": [ "a55fe49683c29388694af6ac8d49b480" ],                                
     "so-import-evtx": "/usr/sbin/so-import-evtx",
     "nsm_evtx": "/nsm/import/",
     "screening_session": "2023",

@@ -129,4 +129,8 @@ def lookup_application(port, image_name, session_name):
         return "Siemens"
     elif i_port > 49100 and image_name == "UNS.exe" and session_name == "Services":
         return "Intel Manageability Service"
+    elif i_port == 80 and image_name == "System" and session_name == "Services":
+        return "Web service"
+    elif i_port == 443 and image_name == "System" and session_name == "Services":
+        return "Web service"        
     return ""
