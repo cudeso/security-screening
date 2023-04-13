@@ -32,6 +32,7 @@ screening_mapping = {
             "comment": {"type": "keyword"},
             "active": {"type": "keyword"},
             "expires": {"type": "keyword"},
+            "password_last_set": {"type": "keyword"},
             "last_logon": {"type": "keyword"},
             "local_group": {"type": "keyword"},
             "global_group": {"type": "keyword"},

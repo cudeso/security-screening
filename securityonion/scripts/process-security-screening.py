@@ -60,21 +60,27 @@ def process_windows_logs(full_output_path):
     for el in config["evtx_logs_to_process"]:
         evtx_file = "{}/logs/{}".format(full_output_path, el)
         if os.path.isfile(evtx_file):
+            import_file = True
+            md5hash = "000"
             logger.info("Processing {}".format(evtx_file))
             with open(evtx_file, "rb") as f:
                 data = f.read()
                 md5hash = hashlib.md5(data).hexdigest()
                 full_path_existing_log = "{}{}".format(config["nsm_evtx"], md5hash)
-            import_file = True
-            if os.path.exists(full_path_existing_log):
-                answer = input("The log {} has already been imported. Confirm re-import (with a risk of double events) with 'yes' or leave blank to skip. ".format(evtx_file))
-                if answer.lower() != "yes":
-                    import_file = False
-                else:
-                    rm_command = "sudo rm -rf {}".format(full_path_existing_log)
-                    os.system(rm_command)
-                    logger.warning("Delete {}".format(full_path_existing_log))
-                    print(colored("Delete {}".format(full_path_existing_log), "red"))
+
+            if md5hash in config["evtx_hashed_to_skip"]:
+                import_file = False
+            else:
+                if os.path.exists(full_path_existing_log):
+                    answer = input("The log {} has already been imported. Confirm re-import (with a risk of double events) with 'yes' or leave blank to skip. ".format(evtx_file))
+                    if answer.lower() != "yes":
+                        import_file = False
+                    else:
+                        rm_command = "sudo rm -rf {}".format(full_path_existing_log)
+                        os.system(rm_command)
+                        logger.warning("Delete {}".format(full_path_existing_log))
+                        print(colored("Delete {}".format(full_path_existing_log), "red"))
+
             if import_file:
                 subprocess.call(["sudo", config["so-import-evtx"], evtx_file])
                 logger.info("Processed {}".format(evtx_file))
@@ -186,6 +192,90 @@ def delete_logs(config, hostname):
         print("No valid hostname supplied")
 
 
+def list_screening(config):
+
+    query = {
+    "bool": {
+      "must": [],
+      "filter": [],
+      "should": [],
+      "must_not": []
+       }
+    }
+
+    hostnames = []
+    result = elasticsearch.search(index="screening-results-*", query=query, source="hostname", size=config["elasticsearch_max_results"])
+    if "hits" in result and "total" in result["hits"]:
+        for hostname in result["hits"]["hits"]:
+            if hostname["_source"]["hostname"] not in hostnames:
+                hostnames.append(hostname["_source"]["hostname"])
+
+    print("There are {} hostnames in security screening data. \n".format(len(hostnames)))
+    for el in hostnames:
+        print(el)
+
+
+def list_screeninglogs(config):
+    query = {
+    "bool": {
+      "must": [],
+      "filter": [
+        {
+          "range": {
+            "@timestamp": {
+              "format": "strict_date_optional_time",
+              "gte": "2021-01-01T00:00:00.00Z"
+            }
+          }
+        },
+        {
+          "match_phrase": {
+            "event.module": "windows_eventlog"
+          }
+        }
+      ],
+      "should": [],
+      "must_not": []
+    }
+        }
+
+    aggregations = {"winlog.computer_name": {"terms": {"field": "winlog.computer_name"}}}
+    result = elasticsearch.search(index="so-beats-*", query=query, aggregations=aggregations, source="winlog.computer_name", size=10000)
+    computer_names = []
+    if "hits" in result and "total" in result["hits"]:
+        for computer_name in result["hits"]["hits"]:
+            if computer_name["_source"]["winlog"]["computer_name"] not in computer_names:
+                computer_names.append(computer_name["_source"]["winlog"]["computer_name"])
+
+    print("There are {} FQDNs in security screening data logs. \n".format(len(computer_names)))
+    for el in computer_names:
+        print(el)
+
+
+def report(config, zipfile):
+
+    logger.info("Process ZIP")
+    full_output_path = extract_zip(zipfile)
+    if full_output_path:
+        logger.info("Process screening files")
+
+        logger.info("Audit files: system info for {}".format(full_output_path))
+        print(colored("Audit files: system info for {}".format(full_output_path)))
+        audit_hostname = screening_system_name(config, False, full_output_path)
+
+        logger.info("Audit files: software list for {}".format(audit_hostname))
+        software_list(config, False, full_output_path, audit_hostname)
+
+        logger.info("Audit files: listening services for {}".format(audit_hostname))
+        listening_services(config, False, full_output_path, audit_hostname)
+
+        logger.info("Audit files: user accounts for {}".format(audit_hostname))
+        user_accounts(config, False, full_output_path, audit_hostname)
+
+        logger.info("Audit files: AV for {}".format(audit_hostname))
+        anti_virus(config, False, full_output_path, audit_hostname)
+
+
 def create_es(config):
     logger.warning("Recreated Elasticsearch index")
     elasticsearch.indices.create(index=config["elasticsearch_index"], mappings=screening_mapping)
@@ -213,10 +303,14 @@ if __name__ == '__main__':
     elasticsearch = Elasticsearch(config["elasticsearch_host"], api_key=config["elasticsearch_api_key"], verify_certs=config["elasticsearch_verify_certs"], ssl_show_warn=False)
 
     parser = argparse.ArgumentParser(description="Process security screening data.",
-                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--process", dest="process", action="store_const", const="process", help="Import a ZIP. Requires the location of the ZIP file.")
-    parser.add_argument("--deletescreening", dest="deletescreening", action="store_const", const="deletescreening", help="Delete screening data stored in Elasticsearch. Requires simple hostname.")
-    parser.add_argument("--deletelogs", dest="deletelogs", action="store_const", const="deletelogs", help="Delete screening data stored in Elasticsearch. Requires FQDN name (from winlog.computer_name).")
+    parser.add_argument("--report", dest="report", action="store_const", const="report", help="Create a report")
+    parser.add_argument("--deletescreening", dest="deletescreening", action="store_const", const="deletescreening", help="Delete Elastic data - security screening data. Requires hostname.")
+    parser.add_argument("--listscreening", dest="listscreening", action="store_const", const="listscreening", help="List security screening data hostnames.")
+    parser.add_argument("--deletescreeninglogs", dest="deletescreeninglogs", action="store_const", const="deletescreeninglogs", help="Delete Elastic data - security screening logs. Requires FQDN (from winlog.computer_name).")
+    parser.add_argument("--listscreeninglogs", dest="listscreeninglogs", action="store_const", const="listscreeninglogs", help="List security screening logs FQDNs.")
+    parser.add_argument("--createes", dest="createes", action="store_const", const="createes", help="Create Elastic index for security screening")
     parser.add_argument("ZIP_or_hostname_or_FQDN", metavar="A ZIP file, short hostname or FQDN", type=str, help="ZIP, hostname or FQDN")
     args = parser.parse_args()
 
@@ -224,14 +318,26 @@ if __name__ == '__main__':
         logger.info("Start processing import")
         process(config, args.ZIP_or_hostname_or_FQDN)
         logger.info("End processing import")
+    elif args.report == "report":
+        logger.info("Start screening report")
+        report(config, args.ZIP_or_hostname_or_FQDN)
+        logger.info("End screening report")
     elif args.deletescreening == "deletescreening":
         logger.info("Start screening delete")
         delete_screening(config, args.ZIP_or_hostname_or_FQDN)
         logger.info("End screening delete")
-    elif args.deletelogs == "deletelogs":
+    elif args.deletescreeninglogs == "deletescreeninglogs":
         logger.info("Start log delete")
         delete_logs(config, args.ZIP_or_hostname_or_FQDN)
         logger.info("End log delete")
+    elif args.listscreening == "listscreening":
+        logger.info("Start listscreening")
+        list_screening(config)
+        logger.info("End listscreening")
+    elif args.listscreeninglogs == "listscreeninglogs":
+        logger.info("Start listscreeninglogs")
+        list_screeninglogs(config)
+        logger.info("End listscreeninglogs")
     elif args.createes == "createes":
         logger.info("Create Elasticsearch index")
         create_es(config)

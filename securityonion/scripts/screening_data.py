@@ -172,7 +172,12 @@ def screening_system_name(config, es, asset_dir):
                 "hotfix": audit_hotfix
     }
 
-    es.index(index=config["elasticsearch_index"], document=systeminfo)
+    if es:
+        es.index(index=config["elasticsearch_index"], document=systeminfo)
+    else:
+        print("\nCSC - 1 - Inventory and Control of Hardware Assets\n-------------------------------------------------------")
+        print("{}\t{}\t{} {}\t{}\t{}\t{}".format(systeminfo["hostname"], systeminfo["domain"], systeminfo["os_name"], systeminfo["os_version"], systeminfo["os_model"], systeminfo["system_owner"], systeminfo["timezone"]))
+    
     return audit_hostname
 
 def user_accounts(config, es, asset_dir, audit_hostname):
@@ -202,7 +207,7 @@ def user_accounts(config, es, asset_dir, audit_hostname):
             if line[0:34] == "The command completed successfully":
 
                 if username:
-                    user_accounts.append( [username, comment, active, expires, lastlogon, local_group, global_group] )
+                    user_accounts.append( [username, comment, active, expires, lastlogon, local_group, global_group, pwlastset] )
                     username=""
                     comment=""
                     active=""
@@ -229,6 +234,9 @@ def user_accounts(config, es, asset_dir, audit_hostname):
                                             user_accounts.append( e )
                 user_accounts.sort()
 
+    if not es:
+        print("\nCSC 5 - Account Management\n-------------------------------------------------------")
+
     for el in user_accounts:
         user= {
                 "timestamp": datetime.datetime.now(),
@@ -241,9 +249,13 @@ def user_accounts(config, es, asset_dir, audit_hostname):
                 "expires": el[3],
                 "last_logon": el[4],
                 "local_group": el[5],
-                "global_group": el[6]
+                "global_group": el[6],
+                "password_last_set": el[7]
         }
-        es.index(index=config["elasticsearch_index"], document=user)
+        if es:
+                es.index(index=config["elasticsearch_index"], document=user)
+        else:
+            print("{}\t{}\t{}\t{}\t{}\t{}\t{}".format(audit_hostname, user["username"], user["active"], user["password_last_set"], user["expires"], user["last_logon"], user["local_group"]))
 
 def software_list(config, es, asset_dir, audit_hostname):
     file_softwarelist = asset_dir + "/software_list.txt"
@@ -289,6 +301,9 @@ def software_list(config, es, asset_dir, audit_hostname):
                     if not len(res) > 0:
                         software_list.append(row["Caption"].strip())
 
+    if not es:
+        print("\nCSC - 2 - Inventory and Control of Software Assets\n-------------------------------------------------------")
+        print("{}\n".format(audit_hostname))
     for el in software_list:
         software = {
                 "timestamp": datetime.datetime.now(),
@@ -297,7 +312,10 @@ def software_list(config, es, asset_dir, audit_hostname):
                 "hostname": audit_hostname,
                 "software": el
         }
-        es.index(index=config["elasticsearch_index"], document=software)
+        if es:
+            es.index(index=config["elasticsearch_index"], document=software)
+        else:
+            print("{}".format(el))
 
 def anti_virus(config, es, asset_dir, audit_hostname):
     file_av_settings = asset_dir + "/tasklist.csv"
@@ -323,7 +341,12 @@ def anti_virus(config, es, asset_dir, audit_hostname):
                 "hostname": audit_hostname,
                 "anti_malware": audit_antimalware[0]
         }
-    es.index(index=config["elasticsearch_index"], document=anti_malware)
+
+    if es:                
+        es.index(index=config["elasticsearch_index"], document=anti_malware)
+    else:
+        print("\nCSC - 10 - Malware Defenses\n-------------------------------------------------------")
+        print("{}\t{}".format(audit_hostname, anti_malware["anti_malware"]))
 
 def listening_services(config, es, asset_dir, audit_hostname):
     file_netstat = asset_dir + "/netstat.txt"
@@ -356,6 +379,10 @@ def listening_services(config, es, asset_dir, audit_hostname):
                                     listening_apps.append([port, pid, image_name, session_name, user_name, application])
             else:
                 linecount = linecount + 1
+
+    if not es:
+        print("\nCSC - 3 - Secure Configuration of Hardware Assets and Software\n-------------------------------------------------------")
+
     for el in listening_apps:
         listening = {
                 "timestamp": datetime.datetime.now(),
@@ -369,4 +396,7 @@ def listening_services(config, es, asset_dir, audit_hostname):
                 "user_name": el[4],
                 "application": el[5]
         }
-        es.index(index=config["elasticsearch_index"], document=listening)            
+        if es:
+            es.index(index=config["elasticsearch_index"], document=listening)            
+        else:
+            print("{}\ttcp/{}\t{}\t{}\t{}\t{}\t".format(audit_hostname, listening["port"], listening["image_name"], listening["user_name"], listening["session_name"], listening["application"]))

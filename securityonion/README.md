@@ -23,12 +23,17 @@
   - [Chainsaw](#chainsaw)
   - [Directories](#directories)
 - [Execute processing of security screening files](#execute-processing-of-security-screening-files)
-  - [Process](#process)
+  - [Process screening results](#process-screening-results)
   - [List screening results](#list-screening-results)
   - [Delete screening results](#delete-screening-results)
   - [Delete log files](#delete-log-files)
+  - [Create a text report](#create-a-text-report)
 - [Security Screening Logs](#security-screening-logs)
-- [Elastic queries](#elastic-queries)
+  - [Dashboards](#dashboards)
+  - [Elastic queries](#elastic-queries)
+- [Security Onion system administration](#security-onion-system-administration)
+  - [Logs](#logs)
+  - [Updates](#updates)
 
 # Security Onion for Security Screening
 
@@ -241,9 +246,9 @@ Create a directory `input` and `output` in security-screening/securityonion
 
 # Execute processing of security screening files
 
-## Process
+## Process screening results
 
-1. Upload the ZIP file in the folder **input**
+1. Upload the ZIP file in the folder **input** (via SSH or other means)
 2. Login to Security Onion
 3. Navigate to security-screening/securityonion/scripts
    1. `cd security-screening/securityonion/scripts`
@@ -272,7 +277,13 @@ Also do not forget to delete the files in `input` and `output`.
 
 `venv/bin/python process-security-screening.py --deletelogs FQDN`
 
+## Create a text report
+
+`venv/bin/python process-security-screening.py --report go`
+
 # Security Screening Logs
+
+## Dashboards
 
 Import `screening_log_details_kibana_export.ndjson` as described under *Import the Kibana saved objects*.
 
@@ -290,8 +301,7 @@ The new dashboards all start with *security screening logs*.
 
 ![assets/logs_start.png](assets/logs_scripts.png)
 
-
-# Elastic queries
+## Elastic queries
 
 Review the Windows logs under Home, Analytics, **Discover**. Make sure to select the view **\*:so-\*** and select the correct time frame (for example the last year.) 
 
@@ -305,3 +315,37 @@ You can then use queries in Elastic.
 * Account locked `winlog.event_id:4740`
 * Executed PowerShell `winlog.event_id:4104`
 * New service installed `winlog.event_id:4697`
+
+# Security Onion system administration
+
+## Logs
+
+The Linux logs in Security Onion are stored in `/var/log`. Take note of
+- messages
+- secure
+- yum
+- firewalld
+- cron
+
+The Security Onion specific logs are in `/opt/so/log/` and
+- Setup `/root/sosetup.log`
+- Suricata `/opt/so/log/suricata/suricata.log`
+- Zeek `/nsm/zeek/logs/current/`
+- Elasticsearch `/opt/so/log/elasticsearch/<hostname>.log`
+- Kibana `/opt/so/log/kibana/kibana.log`
+- Logstash `/opt/so/log/logstash/logstash.log`
+- Elastalert `/opt/so/log/elastalert/elastalert_stderr.log`
+
+## Updates
+
+Updates in Security Onion are managed via `soup`. In most cases it requires a working Internet connection but you can also update it in an airgapped environment. See [https://docs.securityonion.net/en/2.3/soup.html#security-onion-version-updates](https://docs.securityonion.net/en/2.3/soup.html#security-onion-version-updates)
+
+- Download the latest ISO on the ESXi datastore
+- Attach the VM to the datastore
+
+You can also specify the path on the command line using the -f option. For example (change this to reflect the actual path to the ISO image):
+
+`sudo soup -y -f /home/YourUser/securityonion-2.3.XYZ-YYYYMMDD.iso`
+
+
+
