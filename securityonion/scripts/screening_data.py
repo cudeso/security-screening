@@ -18,7 +18,16 @@ def screening_system_name(config, es, asset_dir):
         encoding = chardet.detect(rawdata)["encoding"]
         asset_description = asset_dir.strip()
 
+        skip_first = False
         with open(file_system, "r", encoding=encoding) as csvfile:
+            reader = csv.reader(csvfile)
+            for row in reader:
+                if (type(row) == list and len(row) < 1):
+                     skip_first = True
+                     break
+        with open(file_system, "r", encoding=encoding) as csvfile:
+            if skip_first:
+                next(csvfile)
             reader = csv.DictReader(csvfile)
             for row in reader:
 
@@ -91,6 +100,8 @@ def screening_system_name(config, es, asset_dir):
                     audit_osbootdate = row['System Boot Time']
                 elif 'Systeemopstarttijd' in row:
                     audit_osbootdate = row['Systeemopstarttijd']                            
+                elif 'System Up Time' in row:
+                    audit_osbootdate = row['System Up Time']         
 
                 if 'System Manufacturer' in row:               
                     audit_osmanufact = row['System Manufacturer']
@@ -106,6 +117,8 @@ def screening_system_name(config, es, asset_dir):
                     audit_ostype = row['System Type']
                 elif 'Type systeem' in row:
                     audit_ostype = row['Type systeem']    
+                elif 'System type' in row:
+                    audit_ostype = row['System type']
 
                 if 'Processor(s)' in row:               
                     audit_cpu = row['Processor(s)']
@@ -136,6 +149,8 @@ def screening_system_name(config, es, asset_dir):
                     audit_mem_virt = row['Virtual Memory: Available']
                 elif 'Virtueel geheugen: maximale grootte' in row:
                     audit_mem_virt = row['Virtueel geheugen: maximale grootte']                                                            
+                else:
+                    audit_mem_virt = ""
 
                 if 'Hotfix(s)' in row:               
                     audit_hotfix = row['Hotfix(s)']
@@ -293,10 +308,20 @@ def software_list(config, es, asset_dir, audit_hostname):
         encoding = chardet.detect(rawdata)["encoding"]
         #print("Open {} with encoding {}".format(file_softwarelist, encoding))
 
+        skip_first = False
         with open(file_softwarelist, "r", encoding=encoding) as csvfile:
+            reader = csv.reader(csvfile)
+            for row in reader:
+                if (type(row) == list and len(row) < 1):
+                     skip_first = True
+                     break
+
+        with open(file_softwarelist, "r", encoding=encoding) as csvfile:
+            if skip_first:
+                next(csvfile)
             reader = csv.DictReader(csvfile, fieldnames=["Node", "AssignmentType", "Caption"])
             for row in reader:
-                if 'Caption' in row and row["Caption"] != "Caption" and row["Caption"] not in software_list and row["Caption"] not in config["ignore_software"]:
+                if 'Caption' in row and row["Caption"] != "Caption" and row["Caption"] not in software_list and row["Caption"] not in config["ignore_software"] and row["Caption"] is not None:
                     res = list(filter(lambda x: x in row["Caption"],config["ignore_software"]))
                     if not len(res) > 0:
                         software_list.append(row["Caption"].strip())
@@ -315,7 +340,7 @@ def software_list(config, es, asset_dir, audit_hostname):
         if es:
             es.index(index=config["elasticsearch_index"], document=software)
         else:
-            print("{}".format(el))
+            print("{}".format(el.encode('utf-8')))
 
 def anti_virus(config, es, asset_dir, audit_hostname):
     file_av_settings = asset_dir + "/tasklist.csv"
@@ -324,7 +349,17 @@ def anti_virus(config, es, asset_dir, audit_hostname):
         rawdata=open(file_av_settings,"rb").read()
         encoding = chardet.detect(rawdata)["encoding"]
 
+        skip_first = False
         with open(file_av_settings, "r", encoding=encoding) as csvfile:
+            reader = csv.reader(csvfile)
+            for row in reader:
+                if (type(row) == list and len(row) < 1):
+                     skip_first = True
+                     break
+
+        with open(file_av_settings, "r", encoding=encoding) as csvfile:
+            if skip_first:
+                next(csvfile)
             reader = csv.DictReader(csvfile)
             for row in reader:
                 if 'Image Name' in row:
@@ -366,7 +401,18 @@ def listening_services(config, es, asset_dir, audit_hostname):
                         pid = line[71:].rstrip().lstrip()
                         rawdata=open(file_tasklist,"rb").read()
                         encoding = chardet.detect(rawdata)["encoding"]
+
+                        skip_first = False
+                        with open(file_tasklist, "r", encoding=encoding) as csvfile:
+                            reader = csv.reader(csvfile)
+                            for row in reader:
+                                if (type(row) == list and len(row) < 1):
+                                     skip_first = True
+                                     break
+
                         with open(file_tasklist,"r", encoding=encoding) as csvfile:
+                            if skip_first:
+                                next(csvfile)
                             reader = csv.DictReader(csvfile)
                             for row in reader:                        
                                 if row['PID'] == pid:

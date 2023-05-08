@@ -56,19 +56,19 @@ def lookup_application(port, image_name, session_name):
     elif port == "10243" and image_name == "System" and session_name == "Services":
         return "SSDP"
     elif port == "2103" and image_name == "mqsvc.exe" and session_name == "Services":
-        return "Veritas Enterprise Vault"
+        return "Microsoft Message Queuing"
     elif port == "2104" and image_name == "mqsvc.exe" and session_name == "Services":
-        return "Veritas Enterprise Vault"
+        return "Microsoft Message Queuing"
     elif port == "2105" and image_name == "mqsvc.exe" and session_name == "Services":
-        return "Veritas Enterprise Vault"
+        return "Microsoft Message Queuing"
     elif port == "2106" and image_name == "mqsvc.exe" and session_name == "Services":
-        return "Veritas Enterprise Vault"
+        return "Microsoft Message Queuing"
     elif port == "2107" and image_name == "mqsvc.exe" and session_name == "Services":
-        return "Veritas Enterprise Vault"
+        return "Microsoft Message Queuing"
     elif port == "49171" and image_name == "mqsvc.exe" and session_name == "Services":
-        return "Veritas Enterprise Vault"
+        return "Microsoft Message Queuing"
     elif port == "49172" and image_name == "mqsvc.exe" and session_name == "Services":
-        return "Veritas Enterprise Vault"
+        return "Microsoft Message Queuing"
     elif port == "5040" and image_name == "svchost.exe" and session_name == "Services":
         return "Windows Deployment Services server"
     elif port == "6183" and image_name == "Veeam.EndPoint.Service.exe":
