@@ -13,6 +13,7 @@
   - [Elastic interface](#elastic-interface)
   - [Deleting older indexes](#deleting-older-indexes)
   - [Security Onion security advisories](#security-onion-security-advisories)
+  - [Move /nsm to separate disk](#move-nsm-to-separate-disk)
 - [Setup Processing environment](#setup-processing-environment)
   - [Install tooling](#install-tooling)
   - [Security Onion sudo](#security-onion-sudo)
@@ -30,10 +31,12 @@
   - [Create a text report](#create-a-text-report)
 - [Security Screening Logs](#security-screening-logs)
   - [Dashboards](#dashboards)
+  - [Default dashboard and time frame](#default-dashboard-and-time-frame)
   - [Elastic queries](#elastic-queries)
 - [Security Onion system administration](#security-onion-system-administration)
   - [Logs](#logs)
   - [Updates](#updates)
+  - [Changing Web Access URL](#changing-web-access-url)
 
 # Security Onion for Security Screening
 
@@ -157,9 +160,23 @@ The management of old data in Elastic is done with what is called 'Curator'. Thi
 
 Edit `/opt/so/saltstack/local/pillar/global.sls` and under elasticsearch/index_settings/so-beats change `close` to 180.
 
+Force an update with `sudo so-checkin`.
+
 ## Security Onion security advisories
 
 Security Onion publishes security advisories at [https://github.com/Security-Onion-Solutions/securityonion/security/advisories](https://github.com/Security-Onion-Solutions/securityonion/security/advisories).
+
+## Move /nsm to separate disk
+
+SecurityOnion stores the bulk of its data in the folder **nsm**. To avoid that your system stops when it runs out of disk space it is advised to move /nsm to a separate disk.
+
+We also install the security-screening data in a folder in nsm, and then symlink to this folder from the analyst home directory.
+
+```
+sudo mkdir /nsm/security-screening
+sudo chown -R <analyst> /nsm/security-screening
+ln -s /nsm/security-screening/ /home/<analyst>/security-screening 
+```
 
 # Setup Processing environment
 
@@ -206,6 +223,8 @@ urllib3
 ## Configuration file
 
 Update `elasticsearch_api_key` in `config.py` with the previously created API key.
+
+Update `output_path` and `input_path` with the location where you installed the tooling.
 
 ## Enable the Python virtual environment
 
@@ -301,6 +320,21 @@ The new dashboards all start with *security screening logs*.
 
 ![assets/logs_start.png](assets/logs_scripts.png)
 
+## Default dashboard and time frame
+
+Visit the newly imported dashboard and note the URI part (not the hostname). Go to Stack Management, Advanced Settings.
+
+Search for `defaultRoute` and update the value to the URI you noted earlier.
+
+Search for `timeDefaults` and update to
+
+```
+{
+  "from": "now-7d",
+  "to": "now"
+}
+```
+
 ## Elastic queries
 
 Review the Windows logs under Home, Analytics, **Discover**. Make sure to select the view **\*:so-\*** and select the correct time frame (for example the last year.) 
@@ -347,5 +381,7 @@ You can also specify the path on the command line using the -f option. For examp
 
 `sudo soup -y -f /home/YourUser/securityonion-2.3.XYZ-YYYYMMDD.iso`
 
+## Changing Web Access URL
 
+https://docs.securityonion.net/en/2.3/url-base.html
 
