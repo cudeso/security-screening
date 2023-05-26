@@ -328,10 +328,10 @@ wmic /output:logon_wmic.csv logon list full /format:csv
 :: Step 19 
 :: Browser data
 if %debug%==1 echo "browser data"
-xcopy "C:\Documents and Settings\%user%\Application Data\Mozilla\Firefox\Profiles\" firefox_profiles_user /E /H /C /I
-xcopy "C:\Users\%user%\AppData\Roaming\Mozilla\Firefox\Profiles\" firefox_profiles /E /H /C /I
-xcopy "C:\Users\%user%\AppData\Local\Google\Chrome\User Data\" chrome_userdata /E /H /C /I
-xcopy "C:\Documents and Settings\%user%\Local Settings\Application Data\Google\Chrome\User Data\" chrome_userdata_user /E /H /C /I
+xcopy "C:\Documents and Settings\%username%\Application Data\Mozilla\Firefox\Profiles\" firefox_profiles_user /E /H /C /I
+xcopy "C:\Users\%username%\AppData\Roaming\Mozilla\Firefox\Profiles\" firefox_profiles /E /H /C /I
+xcopy "C:\Users\%username%\AppData\Local\Google\Chrome\User Data\" chrome_userdata /E /H /C /I
+xcopy "C:\Documents and Settings\%username%\Local Settings\Application Data\Google\Chrome\User Data\" chrome_userdata_user /E /H /C /I
 
 
 :: Step 20
