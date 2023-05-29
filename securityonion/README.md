@@ -37,6 +37,8 @@
   - [Logs](#logs)
   - [Updates](#updates)
   - [Changing Web Access URL](#changing-web-access-url)
+- [Windows Event Logs](#windows-event-logs)
+  - [Configuring Event Viewer Log Size on Windows](#configuring-event-viewer-log-size-on-windows)
 
 # Security Onion for Security Screening
 
@@ -384,4 +386,24 @@ You can also specify the path on the command line using the -f option. For examp
 ## Changing Web Access URL
 
 https://docs.securityonion.net/en/2.3/url-base.html
+
+# Windows Event Logs
+
+## Configuring Event Viewer Log Size on Windows
+
+```
+Get-WinEvent -ListLog Security| Select MaximumSizeInBytes, FileSize, IsLogFull, OldestRecordNumber, IsEnabled, LogMode
+````
+
+[Configuring Event Viewer Log Size on Windows](https://woshub.com/windows-event-viewer-log-size/)
+
+1. Open the Event Viewer MMC snap-in (eventvwr.msc);
+1. Select the required log (for example, Security) and open its properties;
+1. Set a new limit under Maximum log size (KB) and save the changes
+
+Via GPO
+
+Computer Configuration -> Policies -> Administrative Templates -> Windows Components -> Event Log Service
+
+For "Applications and Services Logs -> Microsoft" you need to use the registry.
 
