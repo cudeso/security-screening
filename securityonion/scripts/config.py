@@ -100,4 +100,7 @@ config = {
     "chainsaw_sigma": "../chainsaw/sigma/",
     "chainsaw_rules": "../chainsaw/rules/",
     "chainsaw_mappings": "screening_chainsaw-mappings-cudeso.yml",
+    "always_import": True,
+    "keep_output_files": False,
+    "import_state_file": "/nsm/security-screening/securityonion/scripts/import_state.float",
 }

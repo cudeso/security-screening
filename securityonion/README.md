@@ -23,11 +23,10 @@
   - [Import the Kibana saved objects](#import-the-kibana-saved-objects)
   - [Chainsaw](#chainsaw)
   - [Directories](#directories)
-- [Execute processing of security screening files](#execute-processing-of-security-screening-files)
+- [Process of security screening files](#process-of-security-screening-files)
   - [Process screening results](#process-screening-results)
   - [List screening results](#list-screening-results)
   - [Delete screening results](#delete-screening-results)
-  - [Delete log files](#delete-log-files)
   - [Create a text report](#create-a-text-report)
 - [Security Screening Logs](#security-screening-logs)
   - [Dashboards](#dashboards)
@@ -39,6 +38,10 @@
   - [Changing Web Access URL](#changing-web-access-url)
 - [Windows Event Logs](#windows-event-logs)
   - [Configuring Event Viewer Log Size on Windows](#configuring-event-viewer-log-size-on-windows)
+- [Import security screening data from a Windows share](#import-security-screening-data-from-a-windows-share)
+  - [Create a Windows share](#create-a-windows-share)
+  - [Prepare Security Onion](#prepare-security-onion)
+  - [Process the data](#process-the-data)
 
 # Security Onion for Security Screening
 
@@ -265,7 +268,7 @@ chmod +x security-screening/securityonion/chainsaw/chainsaw_x86_64-unknown-linux
 
 Create a directory `input` and `output` in security-screening/securityonion
 
-# Execute processing of security screening files
+# Process of security screening files
 
 ## Process screening results
 
@@ -278,6 +281,8 @@ Create a directory `input` and `output` in security-screening/securityonion
 
 ## List screening results
 
+You can list the available hosts with security screening results or Windows log files with `--listscreening` or `--listscreeninglogs`. You can use this step as input for the deletion of data.
+
 `venv/bin/python process-security-screening.py --listscreening go`
 
 `venv/bin/python process-security-screening.py --listscreeninglogs go`
@@ -288,19 +293,15 @@ Delete screening results:
 
 `venv/bin/python process-security-screening.py --deletescreening HOSTNAME`
 
-Delete logs from screening:
+Delete Windows logs from screening:
 
 `venv/bin/python process-security-screening.py --deletescreeninglogs HOSTNAME`
 
 Also do not forget to delete the files in `input` and `output`.
 
-## Delete log files
-
-`venv/bin/python process-security-screening.py --deletelogs FQDN`
-
 ## Create a text report
 
-`venv/bin/python process-security-screening.py --report go`
+`venv/bin/python process-security-screening.py --report ../input/audit_COMPUTER.zip`
 
 # Security Screening Logs
 
@@ -407,3 +408,44 @@ Computer Configuration -> Policies -> Administrative Templates -> Windows Compon
 
 For "Applications and Services Logs -> Microsoft" you need to use the registry.
 
+# Import security screening data from a Windows share
+
+You can import the security screening data from a Windows share. The script can either look for new ZIP files or folders with new security screening data and then automatically import this data.
+
+## Create a Windows share
+
+You can create a new share by going to Computer Management on the Windows server, and then choose Shared Folders. Next right click and choose **New Share**. Make sure you add a Windows user account with **read** permissions on the share.
+
+## Prepare Security Onion
+
+You need to prepare Security Onion to support accessing a Windows share. From a host with Internet connection download these files.
+
+- http://mirror.centos.org/centos/7/os/x86_64/Packages/cifs-utils-6.2-10.el7.x86_64.rpm
+- http://mirror.centos.org/centos/7/os/x86_64/Packages/keyutils-1.5.8-3.el7.x86_64.rpm
+
+Then upload them to Security Onion and install them with
+
+```
+rpm -i keyutils-1.5.8-3.el7.x86_64.rpm
+rpm -i cifs-utils-6.2-10.el7.x86_64.rpm
+```
+
+Create the mount point to access the Windows share and then mount the folder.
+
+```
+sudo mkdir /nsm/security-screening/securityonion/smb/
+sudo mount -t cifs -o username=joe //nas/screening /nsm/security-screening/securityonion/smb/
+```
+
+Add a setting to the configuration file `config.py` that describes the file used by the import script to keep track of the latest import 
+
+```
+    "import_state_file": "/nsm/security-screening/securityonion/scripts/import_state.float",
+```
+
+## Process the data
+
+You can process the data in two ways. 
+
+1. Either have the script monitor a folder for **new ZIP** files. If a new file is found, it is extracted and processed. Do this with `venv/bin/python process-security-screening.py --monitornew /nsm/security-screening/securityonion/smb/`.
+2. Or, have the script monitor a folder for **new screening data**. If a new folder with screening data is found, its content is processed. Do this with `venv/bin/python process-security-screening.py --monitornewfolder /nsm/security-screening/securityonion/smb/`.
