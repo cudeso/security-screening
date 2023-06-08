@@ -165,9 +165,9 @@ def monitornewfolder(config, folder):
             processfolder(config, asset)
 
     current_state = time.time()        
-    #f = open(config["import_state_file"], "w")
-    #f.write(str(current_state))
-    #f.close()
+    f = open(config["import_state_file"], "w")
+    f.write(str(current_state))
+    f.close()
 
 def monitornew(config, folder):
     try:
@@ -176,7 +176,6 @@ def monitornew(config, folder):
         f.close()
     except:
         previous_state = 0.0
-    print("hier")
     dirs_in_folder = glob.glob("{}/*.zip".format(folder))
     for asset in dirs_in_folder:
         mtime = os.path.getmtime(asset)
@@ -186,9 +185,9 @@ def monitornew(config, folder):
             process(config, asset)
 
     current_state = time.time()        
-    #f = open(config["import_state_file"], "w")
-    #f.write(str(current_state))
-    #f.close()
+    f = open(config["import_state_file"], "w")
+    f.write(str(current_state))
+    f.close()
 
 def processfolder(config, folder):
     logger.info("Process folder {}".format(folder))
