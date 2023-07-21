@@ -1,48 +1,3 @@
-- [Security Onion for Security Screening](#security-onion-for-security-screening)
-- [Prepare SecurityOnion for security screening](#prepare-securityonion-for-security-screening)
-  - [Download ISO](#download-iso)
-  - [Prepare](#prepare)
-    - [Prepare VM](#prepare-vm)
-    - [Prepare Analyst workstation](#prepare-analyst-workstation)
-    - [Processing ISO](#processing-iso)
-  - [Install VM](#install-vm)
-  - [Set the correct keyboard](#set-the-correct-keyboard)
-  - [Install GUI for analyst](#install-gui-for-analyst)
-  - [Firewall access](#firewall-access)
-  - [Create an Elastic API key](#create-an-elastic-api-key)
-  - [Elastic interface](#elastic-interface)
-  - [Deleting older indexes](#deleting-older-indexes)
-  - [Security Onion security advisories](#security-onion-security-advisories)
-  - [Move /nsm to separate disk](#move-nsm-to-separate-disk)
-- [Setup Processing environment](#setup-processing-environment)
-  - [Install tooling](#install-tooling)
-  - [Security Onion sudo](#security-onion-sudo)
-  - [Python virtual environment](#python-virtual-environment)
-  - [Configuration file](#configuration-file)
-  - [Enable the Python virtual environment](#enable-the-python-virtual-environment)
-  - [Import the Kibana saved objects](#import-the-kibana-saved-objects)
-  - [Chainsaw](#chainsaw)
-  - [Directories](#directories)
-- [Process of security screening files](#process-of-security-screening-files)
-  - [Process screening results](#process-screening-results)
-  - [List screening results](#list-screening-results)
-  - [Delete screening results](#delete-screening-results)
-  - [Create a text report](#create-a-text-report)
-- [Security Screening Logs](#security-screening-logs)
-  - [Dashboards](#dashboards)
-  - [Default dashboard and time frame](#default-dashboard-and-time-frame)
-  - [Elastic queries](#elastic-queries)
-- [Security Onion system administration](#security-onion-system-administration)
-  - [Logs](#logs)
-  - [Updates](#updates)
-  - [Changing Web Access URL](#changing-web-access-url)
-- [Windows Event Logs](#windows-event-logs)
-  - [Configuring Event Viewer Log Size on Windows](#configuring-event-viewer-log-size-on-windows)
-- [Import security screening data from a Windows share](#import-security-screening-data-from-a-windows-share)
-  - [Create a Windows share](#create-a-windows-share)
-  - [Prepare Security Onion](#prepare-security-onion)
-  - [Process the data](#process-the-data)
-
 # Security Onion for Security Screening
 
 Use Security Onion to represent data coming from a security screening. This will display the asset information from the auditscript, as well as import the most import Windows (EVTX) log files in Security Onion.
@@ -53,11 +8,9 @@ Use Security Onion to represent data coming from a security screening. This will
 
 ## Download ISO
 
-Download the latest ISO from [https://github.com/Security-Onion-Solutions/securityonion/blob/master/VERIFY_ISO.md](https://github.com/Security-Onion-Solutions/securityonion/blob/master/VERIFY_ISO.md) and verify its signature as described by Security Onion. Store the ISO on the datastore of the ESXi (or where the VM is hosed).
+Download the latest ISO from [https://github.com/Security-Onion-Solutions/securityonion/blob/master/VERIFY_ISO.md](https://github.com/Security-Onion-Solutions/securityonion/blob/master/VERIFY_ISO.md) and verify its signature as described by Security Onion.
 
-## Prepare
-
-### Prepare VM
+## Prepare VM
 
 Setup a new VM with these specifications
 
@@ -66,31 +19,12 @@ Setup a new VM with these specifications
 - Memory: Minimum **24GB** RAM
 - Disk: Minimum **250GB** disk space
 - Two network interfaces
-- Point the CD-ROM to the Security Onion ISO file
+- Point the CD-ROM to the ISO file
 
-For the installation also need
-- One **fixed** IPv4 address
+For the installation you also need
+- One fixed IPv4 address
 - A user account for Security Onion ('admin')
 - A user account for the web interface of Security Onion (an e-mail address)
-- Choose a strong password for both accounts. Remember that during installation the keyboard layout is querty.
-
-Configure these firewall rules on your network
-- Inbound SSH (tcp/22) from the administration host
-- Inbound HTTPS (tcp/443) for all other users that require access to the web interface
-
-### Prepare Analyst workstation
-
-You need an SSH client on the analyst workstation that you use for administrating Security Onion. It is advised to use MobaXTerm which can be downloaded from [https://mobaxterm.mobatek.net/download-home-edition.html](https://mobaxterm.mobatek.net/download-home-edition.html).
-
-Download MobaXTerm from the analyst workstation.
-
-### Processing ISO
-
-Because the VM is going to be airgapped (without Internet connectivity) you need a way to get the tools used for processing the logs on the VM.
-
-Create an ISO with the content of this repository, together with a prepared Python virtual environment. Store this ISO on the datastore of the ESXi (or where the VM is hosed).
-
-1. Create an ISO image of the tar.gz with all data: `mkisofs -o security-screening.iso security-screening.tar.gz`
 
 ## Install VM
 
@@ -159,38 +93,15 @@ Change the Elastic interface to reflect your preferences. Within the Discover ta
 - Enable **Document Explorer or classic view**
 - Search for Dark Mode, disable **Dark mode**
 
-## Deleting older indexes
+## Transfer files
 
-The management of old data in Elastic is done with what is called 'Curator'. This is configured in `/opt/so/saltstack/local/pillar/global.sls`. Curator defaults to closing indices older than 30 days and deleting indeces older than a year.
-
-Edit `/opt/so/saltstack/local/pillar/global.sls` and under elasticsearch/index_settings/so-beats change `close` to 180.
-
-Force an update with `sudo so-checkin`.
-
-## Security Onion security advisories
-
-Security Onion publishes security advisories at [https://github.com/Security-Onion-Solutions/securityonion/security/advisories](https://github.com/Security-Onion-Solutions/securityonion/security/advisories).
-
-## Move /nsm to separate disk
-
-SecurityOnion stores the bulk of its data in the folder **nsm**. To avoid that your system stops when it runs out of disk space it is advised to move /nsm to a separate disk.
-
-We also install the security-screening data in a folder in nsm, and then symlink to this folder from the analyst home directory.
-
-```
-sudo mkdir /nsm/security-screening
-sudo chown -R <analyst> /nsm/security-screening
-ln -s /nsm/security-screening/ /home/<analyst>/security-screening 
-```
+1. Create an ISO image of the tar.gz with all data: `mkisofs -o security-screening.iso security-screening.tar.gz`
+2. Mount ISO in VM
+3. Copy tar.gz to new VM, expand in `security-screening/securityonion`
+4. If needed, replace the references to the older username in the venv
+   1. `cd security-screening/securityonion/scripts/venv ; find . -type f | xargs sed -i 's/olduser/analyst/g'`
 
 # Setup Processing environment
-
-## Install tooling 
-
-1. Mount ISO in VM
-2. Copy tar.gz to new VM, expand in `security-screening/securityonion`
-3. If needed, replace the references to the older username in the venv
-   - `cd security-screening/securityonion/scripts/venv ; find . -type f | xargs sed -i 's/olduser/analyst/g'`
 
 ## Security Onion sudo
 
@@ -203,7 +114,7 @@ analyst ALL=(root) NOPASSWD:/usr/bin/rm
 
 ## Python virtual environment
 
-Create the Python virtual environment (or use the one from ISO)
+Create the Python virtual environment
 
 ```
 python3 -m venv venv
@@ -229,7 +140,6 @@ urllib3
 
 Update `elasticsearch_api_key` in `config.py` with the previously created API key.
 
-Update `output_path` and `input_path` with the location where you installed the tooling.
 
 ## Enable the Python virtual environment
 
@@ -248,7 +158,7 @@ Verify in Elastic that the index has been created under Stack Management, Index 
 
 ## Import the Kibana saved objects
 
-Import the Kibana saved objects to have the different visualisations available. Under Stack Management, Kibana choose **Saved Objects**. Then click **Import**, select the file `screening_kibana_export.ndjson` and choose **Check for existing objects** and **Automatically overwrite conflicts**. Then click on **Import**.
+Import the Kibana saved objects to have the different visualisations available. Under Stack Management, Kibana choose **Saved Objects**. Then click **Import**, select the file `screening_kibana_export.ndjson` and choose to check for existing objects and overwrite conflicts. Then click on **Import**.
 
 Verify that the screening dashboard has been imported by going to Home, Analytics and choose **Dashboard**. Search for the security screenings dashbaoard.
 
@@ -268,77 +178,80 @@ chmod +x security-screening/securityonion/chainsaw/chainsaw_x86_64-unknown-linux
 
 Create a directory `input` and `output` in security-screening/securityonion
 
-# Process of security screening files
+# Execute processing of security screening files
 
-## Process screening results
+## Process
 
-1. Upload the ZIP file in the folder **input** (via SSH or other means)
+1. Upload the ZIP file in the folder **input**
 2. Login to Security Onion
 3. Navigate to security-screening/securityonion/scripts
    1. `cd security-screening/securityonion/scripts`
 4. Execute the Python script
    1. `venv/bin/python process-security-screening.py --process ../input/audit_COMPUTER.zip`
 
-## List screening results
+Different options for processing
 
-You can list the available hosts with security screening results or Windows log files with `--listscreening` or `--listscreeninglogs`. You can use this step as input for the deletion of data.
-
-`venv/bin/python process-security-screening.py --listscreening go`
-
-`venv/bin/python process-security-screening.py --listscreeninglogs go`
+- `process`
+  - Input: ZIP file name
+  - Actions:
+    - Extract ZIP
+    - Read Windows logs
+    - Read screening files
+    - (opt) Execute Chainsaw
+    - Delete extracted files (if `keep_output_files` is set to False)
+- `processfolder`
+  - Input: foldername
+  - Actions:
+    - Read Windows logs
+    - Read screening files
+    - (opt) Execute Chainsaw
+    - *Does not delete extracted files*
+- `processevtx`
+  - Input: ZIP file name
+  - Actions:
+    - Extract ZIP
+    - Set path to Windows log file with setting from `processevtx_logfolder`
+    - Read Windows logs
+    - Delete extracted files
+- `monitornew`
+  - Input: foldername
+  - Actions:
+    - Read state from `import_state_file`
+    - Read all files ending in *.zip
+    - Check if changed time is newer than state file
+      - If newer, then run `process`
+    - Update state
+- `monitornewevtx`
+  - Input: foldername
+  - Actions:
+    - Read state from `import_state_file`
+    - Read all files ending in *.zip
+    - Check if changed time is newer than state file
+      - If newer, then run `processevtx`
+    - Update state 
+- `monitornewfolder`
+  - Input: foldername
+  - Actions:
+    - Read state from `import_state_file`
+    - Read all updated folders in foldername
+    - Check if changed time is newer than state file
+      - If newer, then run `processfolder`
+    - - Update state
+- `report`
+  - Input: ZIP file name
+  - Actions:
+    - Extract ZIP
+    - Process audit files (system, software, network, users, av)
 
 ## Delete screening results
 
-Delete screening results:
-
 `venv/bin/python process-security-screening.py --deletescreening HOSTNAME`
 
-Delete Windows logs from screening:
+## Delete log files
 
-`venv/bin/python process-security-screening.py --deletescreeninglogs HOSTNAME`
+`venv/bin/python process-security-screening.py --deletelogs FQDN`
 
-Also do not forget to delete the files in `input` and `output`.
-
-## Create a text report
-
-`venv/bin/python process-security-screening.py --report ../input/audit_COMPUTER.zip`
-
-# Security Screening Logs
-
-## Dashboards
-
-Import `screening_log_details_kibana_export.ndjson` as described under *Import the Kibana saved objects*.
-
-The new dashboards all start with *security screening logs*.
-
-![assets/logs_start.png](assets/users.png)
-
-![assets/logs_start.png](assets/logs_start.png)
-
-![assets/logs_start.png](assets/logs_users.png)
-
-![assets/logs_start.png](assets/logs_logs.png)
-
-![assets/logs_start.png](assets/logs_tasks.png)
-
-![assets/logs_start.png](assets/logs_scripts.png)
-
-## Default dashboard and time frame
-
-Visit the newly imported dashboard and note the URI part (not the hostname). Go to Stack Management, Advanced Settings.
-
-Search for `defaultRoute` and update the value to the URI you noted earlier.
-
-Search for `timeDefaults` and update to
-
-```
-{
-  "from": "now-7d",
-  "to": "now"
-}
-```
-
-## Elastic queries
+# Demo Elastic queries
 
 Review the Windows logs under Home, Analytics, **Discover**. Make sure to select the view **\*:so-\*** and select the correct time frame (for example the last year.) 
 
@@ -352,100 +265,3 @@ You can then use queries in Elastic.
 * Account locked `winlog.event_id:4740`
 * Executed PowerShell `winlog.event_id:4104`
 * New service installed `winlog.event_id:4697`
-
-# Security Onion system administration
-
-## Logs
-
-The Linux logs in Security Onion are stored in `/var/log`. Take note of
-- messages
-- secure
-- yum
-- firewalld
-- cron
-
-The Security Onion specific logs are in `/opt/so/log/` and
-- Setup `/root/sosetup.log`
-- Suricata `/opt/so/log/suricata/suricata.log`
-- Zeek `/nsm/zeek/logs/current/`
-- Elasticsearch `/opt/so/log/elasticsearch/<hostname>.log`
-- Kibana `/opt/so/log/kibana/kibana.log`
-- Logstash `/opt/so/log/logstash/logstash.log`
-- Elastalert `/opt/so/log/elastalert/elastalert_stderr.log`
-
-## Updates
-
-Updates in Security Onion are managed via `soup`. In most cases it requires a working Internet connection but you can also update it in an airgapped environment. See [https://docs.securityonion.net/en/2.3/soup.html#security-onion-version-updates](https://docs.securityonion.net/en/2.3/soup.html#security-onion-version-updates)
-
-- Download the latest ISO on the ESXi datastore
-- Attach the VM to the datastore
-
-You can also specify the path on the command line using the -f option. For example (change this to reflect the actual path to the ISO image):
-
-`sudo soup -y -f /home/YourUser/securityonion-2.3.XYZ-YYYYMMDD.iso`
-
-## Changing Web Access URL
-
-https://docs.securityonion.net/en/2.3/url-base.html
-
-# Windows Event Logs
-
-## Configuring Event Viewer Log Size on Windows
-
-```
-Get-WinEvent -ListLog Security| Select MaximumSizeInBytes, FileSize, IsLogFull, OldestRecordNumber, IsEnabled, LogMode
-````
-
-[Configuring Event Viewer Log Size on Windows](https://woshub.com/windows-event-viewer-log-size/)
-
-1. Open the Event Viewer MMC snap-in (eventvwr.msc);
-1. Select the required log (for example, Security) and open its properties;
-1. Set a new limit under Maximum log size (KB) and save the changes
-
-Via GPO
-
-Computer Configuration -> Policies -> Administrative Templates -> Windows Components -> Event Log Service
-
-For "Applications and Services Logs -> Microsoft" you need to use the registry.
-
-# Import security screening data from a Windows share
-
-You can import the security screening data from a Windows share. The script can either look for new ZIP files or folders with new security screening data and then automatically import this data.
-
-## Create a Windows share
-
-You can create a new share by going to Computer Management on the Windows server, and then choose Shared Folders. Next right click and choose **New Share**. Make sure you add a Windows user account with **read** permissions on the share.
-
-## Prepare Security Onion
-
-You need to prepare Security Onion to support accessing a Windows share. From a host with Internet connection download these files.
-
-- http://mirror.centos.org/centos/7/os/x86_64/Packages/cifs-utils-6.2-10.el7.x86_64.rpm
-- http://mirror.centos.org/centos/7/os/x86_64/Packages/keyutils-1.5.8-3.el7.x86_64.rpm
-
-Then upload them to Security Onion and install them with
-
-```
-rpm -i keyutils-1.5.8-3.el7.x86_64.rpm
-rpm -i cifs-utils-6.2-10.el7.x86_64.rpm
-```
-
-Create the mount point to access the Windows share and then mount the folder.
-
-```
-sudo mkdir /nsm/security-screening/securityonion/smb/
-sudo mount -t cifs -o username=joe //nas/screening /nsm/security-screening/securityonion/smb/
-```
-
-Add a setting to the configuration file `config.py` that describes the file used by the import script to keep track of the latest import 
-
-```
-    "import_state_file": "/nsm/security-screening/securityonion/scripts/import_state.float",
-```
-
-## Process the data
-
-You can process the data in two ways. 
-
-1. Either have the script monitor a folder for **new ZIP** files. If a new file is found, it is extracted and processed. Do this with `venv/bin/python process-security-screening.py --monitornew /nsm/security-screening/securityonion/smb/`.
-2. Or, have the script monitor a folder for **new screening data**. If a new folder with screening data is found, its content is processed. Do this with `venv/bin/python process-security-screening.py --monitornewfolder /nsm/security-screening/securityonion/smb/`.

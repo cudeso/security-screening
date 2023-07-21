@@ -24,6 +24,9 @@ from screening_data import *
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+import Evtx.Evtx as evtx
+import Evtx.Views as e_views
+
 
 def extract_zip(zipfile):
     if zipfile.lower()[len(zipfile)-4:] == ".zip":
@@ -57,10 +60,19 @@ def extract_zip(zipfile):
         return False
 
 
-def process_windows_logs(full_output_path, always_import=False):
+def process_windows_logs(full_output_path, always_import=False, full_output_path_logs_dirflag=False):
     for el in config["evtx_logs_to_process"]:
-        evtx_file = "{}/logs/{}".format(full_output_path, el)
+        if full_output_path_logs_dirflag:
+            # Remove everything after /output, use it first as a separator
+            full_output_path = "{}/output".format(full_output_path.split("/output")[0])
+            logger.info("Changing path to {}".format(full_output_path))
+            full_output_path_logs_dir = full_output_path_logs_dirflag
+        else:
+            full_output_path_logs_dir = "logs"
+        evtx_file = "{}/{}/{}".format(full_output_path, full_output_path_logs_dir, el)
         if os.path.isfile(evtx_file):
+            if config.get("deletematchinglogs", False):
+                deletematchinglogs(config, evtx_file)
             import_file = True
             md5hash = "000"
             logger.info("Processing {}".format(evtx_file))
@@ -151,18 +163,21 @@ def process_chainsaw(full_output_path):
                 print(colored("Found suspicious activity with Chainsaw in {}".format(el), "red"))
 
 def monitornewfolder(config, folder):
+    logger.info("Monitor folder {} for new files".format(folder))
     try:
         f = open(config["import_state_file"], "r")
         previous_state = float(f.read())
         f.close()
     except:
+        logger.info("Reset state to 0")
         previous_state = 0.0
 
     dirs_in_folder = glob.glob("{}/*".format(folder))
     for asset in dirs_in_folder:
-        mtime = os.path.getmtime(asset)
-        if mtime > previous_state:
-            processfolder(config, asset)
+        if os.path.isdir(asset):
+            mtime = os.path.getmtime(asset)
+            if mtime > previous_state:
+                processfolder(config, asset)
 
     current_state = time.time()        
     f = open(config["import_state_file"], "w")
@@ -170,24 +185,47 @@ def monitornewfolder(config, folder):
     f.close()
 
 def monitornew(config, folder):
+    logger.info("Monitor folder {} for new ZIP files".format(folder))    
     try:
         f = open(config["import_state_file"], "r")
         previous_state = float(f.read())
         f.close()
     except:
+        logger.info("Reset state to 0")
         previous_state = 0.0
+
     dirs_in_folder = glob.glob("{}/*.zip".format(folder))
     for asset in dirs_in_folder:
         mtime = os.path.getmtime(asset)
-        print(previous_state, mtime, asset)
         if mtime > previous_state:
-            print(asset)
             process(config, asset)
 
     current_state = time.time()        
     f = open(config["import_state_file"], "w")
     f.write(str(current_state))
     f.close()
+
+def monitornewevtx(config, folder):
+    logger.info("Monitor folder {} for new ZIP files with Windows lgos".format(folder))    
+    try:
+        f = open(config["import_state_file"], "r")
+        previous_state = float(f.read())
+        f.close()
+    except:
+        logger.info("Reset state to 0")
+        previous_state = 0.0
+
+    dirs_in_folder = glob.glob("{}/*.zip".format(folder))
+    for asset in dirs_in_folder:
+        mtime = os.path.getmtime(asset)
+        if mtime > previous_state:
+            processevtx(config, asset)
+    
+    current_state = time.time()        
+    f = open(config["import_state_file"], "w")
+    f.write(str(current_state))
+    f.close()
+
 
 def processfolder(config, folder):
     logger.info("Process folder {}".format(folder))
@@ -203,10 +241,37 @@ def processfolder(config, folder):
             logger.info("Process chainsaw")
             process_chainsaw(full_output_path)
 
+def processevtx(config, zipfile):
+    logger.info("Process ZIP {} with EVTX".format(zipfile))
+    full_output_path = extract_zip(zipfile)
+    if full_output_path:
+        logger.info("Process Windows logs")        
+        process_windows_logs(full_output_path, config.get("always_import", False), config.get("processevtx_logfolder", False))
+        
+        if config.get("always_delete_outputfiles", False):
+            if config.get("processevtx_logfolder", False):
+                # Remove everything after /output, use it first as a separator
+                full_output_path = "{}/output".format(full_output_path.split("/output")[0])
+                rm_remove_files = "rm -rf {}/{}".format(full_output_path, config.get("processevtx_logfolder"))
+            else:
+                rm_remove_files = "rm -rf {}".format(full_output_path)
+            os.system(rm_remove_files)
+            logger.warning("Delete {}".format(rm_remove_files))
+        elif not config.get("keep_output_files", False):
+            answer = input("Remove the extracted files from disk? This will not remove the information from Elastic. Answer 'yes' or leave blank to keep the files. ")
+            if answer.lower() == "yes":
+                if config.get("processevtx_logfolder", False):
+                    # Remove everything after /output, use it first as a separator
+                    full_output_path = "{}/output".format(full_output_path.split("/output")[0])
+                    rm_remove_files = "rm -rf {}/{}".format(full_output_path, config.get("processevtx_logfolder"))
+                else:
+                    rm_remove_files = "rm -rf {}".format(full_output_path)
+                os.system(rm_remove_files)
+                logger.warning("Delete {}".format(rm_remove_files))
+                print(colored("Delete {}".format(rm_remove_files), "red"))
 
 def process(config, zipfile):
-
-    logger.info("Process ZIP")
+    logger.info("Process ZIP {}".format(zipfile))
     full_output_path = extract_zip(zipfile)
     if full_output_path:
         logger.info("Process Windows logs")
@@ -219,7 +284,11 @@ def process(config, zipfile):
             logger.info("Process chainsaw")
             process_chainsaw(full_output_path)
 
-        if not config.get("keep_output_files", False):
+        if config.get("always_delete_outputfiles", False):
+            rm_remove_files = "rm -rf {}".format(full_output_path)
+            os.system(rm_remove_files)
+            logger.warning("Delete {}".format(rm_remove_files))
+        elif not config.get("keep_output_files", False):
             answer = input("Remove the extracted files from disk? This will not remove the information from Elastic. Answer 'yes' or leave blank to keep the files. ")
             if answer.lower() == "yes":
                 rm_remove_files = "rm -rf {}".format(full_output_path)
@@ -228,7 +297,7 @@ def process(config, zipfile):
                 print(colored("Delete {}".format(full_output_path), "red"))
 
 
-def delete_screening(config, hostname):
+def deletescreening(config, hostname):
     if len(hostname) > 0:
         query = {"bool": {"must": [], "filter": [{"match_phrase": {
                 "hostname": hostname
@@ -240,7 +309,7 @@ def delete_screening(config, hostname):
         print("No valid hostname supplied")
 
 
-def delete_logs(config, hostname):
+def deletescreeninglogs(config, hostname):
     if len(hostname) > 0:
         query = {"bool": {"must": [], "filter": [{"match_phrase": {
                 "winlog.computer_name": hostname
@@ -252,8 +321,7 @@ def delete_logs(config, hostname):
         print("No valid hostname supplied")
 
 
-def list_screening(config):
-
+def listscreening(config):
     query = {
     "bool": {
       "must": [],
@@ -275,7 +343,7 @@ def list_screening(config):
         print(el)
 
 
-def list_screeninglogs(config):
+def listscreeninglogs(config):
     query = {
     "bool": {
       "must": [],
@@ -335,6 +403,54 @@ def report(config, zipfile):
         logger.info("Audit files: AV for {}".format(audit_hostname))
         anti_virus(config, False, full_output_path, audit_hostname)
 
+def deletematchinglogs(config, evtx_file_path):
+    first_timestamp = False
+    last_timestamp = False
+    computer_list = []
+    channel = ""
+    record_counter = 0
+
+    try:
+        logger.info("Reading EVTX file {}".format(evtx_file_path))
+        with evtx.Evtx(evtx_file_path) as log:
+            record = next(log.records())
+            first_timestamp = record.timestamp().isoformat()
+            last_timestamp = first_timestamp
+            for record in log.records():
+                computer = record.xml().split("<Computer>")[1].split("</Computer")[0]
+                if computer not in computer_list:
+                    computer_list.append(computer)
+                channel = record.xml().split("<Channel>")[1].split("</Channel")[0]
+                timestamp = record.timestamp().isoformat()
+                if timestamp < first_timestamp:
+                    first_timestamp = timestamp
+                elif timestamp > last_timestamp:
+                    last_timestamp = timestamp
+            
+                record_counter += 1
+                if record_counter % 500 == 0:
+                    logger.info("  Read {} records".format(record_counter))
+
+        logger.info(" Received {} records, first timestamp: {}, last timestamp: {}, computer list: {}, channel: {}".format(record_counter, first_timestamp, last_timestamp, computer_list, channel))
+
+        for computer in computer_list:            
+            query = {"bool": {"must": [], "filter": [{
+                        "bool": {
+                            "filter": [
+                            {"bool": {"should": [{"match_phrase": {"winlog.channel": channel}}],"minimum_should_match": 1}},
+                            {"bool": {"should": [{"match_phrase": {"winlog.computer_name": computer}}],"minimum_should_match": 1}},
+                            {"bool": {"should": [{"range": {"@timestamp": {"gte": "{}Z".format(first_timestamp),
+                                                                           "lte": "{}Z".format(last_timestamp),"time_zone": "Europe/Brussels"}}}],
+                                                    "minimum_should_match": 1}}]}
+                        }], "should": [], "must_not": []}}            
+            result = elasticsearch.delete_by_query(index="so-beats-*", query=query)
+            logger.info(" Deleted records for {}: {}".format(computer, result))
+
+    except Exception as e:
+        print(f"Error for deletematchinglogs : {e}")
+        logger.info("Error for deletematchinglogs : {e}")
+
+    logger.info("Finished processing {}".format(evtx_file_path))
 
 def create_es(config):
     logger.warning("Recreated Elasticsearch index")
@@ -364,16 +480,20 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description="Process security screening data.",
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--process", dest="process", action="store_const", const="process", help="Import a ZIP. Requires the location of the ZIP file.")
-    parser.add_argument("--processfolder", dest="processfolder", action="store_const", const="processfolder", help="Import expanded data. Requires the folder location.")
-    parser.add_argument("--report", dest="report", action="store_const", const="report", help="Create a report")
-    parser.add_argument("--deletescreening", dest="deletescreening", action="store_const", const="deletescreening", help="Delete Elastic data - security screening data. Requires hostname.")
+    parser.add_argument("--process", dest="process", action="store_const", const="process", help="Import one ZIP file. Requires the location of the ZIP file.")
+    parser.add_argument("--processevtx", dest="processevtx", action="store_const", const="processevtx", help="Import one ZIP file with EVTX files.")
+    parser.add_argument("--processfolder", dest="processfolder", action="store_const", const="processfolder", help="Import extracted data from a specific folder. Requires the folder location.")
+    parser.add_argument("--monitornew", dest="monitornew", action="store_const", const="monitornew", help="Monitor a specific folder for new ZIPs and then import them. Same as 'process' but for all ZIPs in a folder.")
+    parser.add_argument("--monitornewevtx", dest="monitornewevtx", action="store_const", const="monitornewevtx", help="Monitor a specific folder for new ZIPs with only Windows log files and then import them. Same as 'process' but for all ZIPs in a folder.")    
+    parser.add_argument("--monitornewfolder", dest="monitornewfolder", action="store_const", const="monitornewfolder", help="Monitor specific path for new screening data and import the data. Same as 'processfolder' but for all folders containing extracted data.")
     parser.add_argument("--listscreening", dest="listscreening", action="store_const", const="listscreening", help="List security screening data hostnames.")
-    parser.add_argument("--deletescreeninglogs", dest="deletescreeninglogs", action="store_const", const="deletescreeninglogs", help="Delete Elastic data - security screening logs. Requires FQDN (from winlog.computer_name).")
     parser.add_argument("--listscreeninglogs", dest="listscreeninglogs", action="store_const", const="listscreeninglogs", help="List security screening logs FQDNs.")
+    parser.add_argument("--deletescreening", dest="deletescreening", action="store_const", const="deletescreening", help="Delete screening data from Elastic. Requires hostname.")
+    parser.add_argument("--deletescreeninglogs", dest="deletescreeninglogs", action="store_const", const="deletescreeninglogs", help="Delete log files from Elastic data. Requires FQDN (from winlog.computer_name).")
+    parser.add_argument("--report", dest="report", action="store_const", const="report", help="Create a report")
     parser.add_argument("--createes", dest="createes", action="store_const", const="createes", help="Create Elastic index for security screening")
-    parser.add_argument("--monitornew", dest="monitornew", action="store_const", const="monitornew", help="Monitor specific path for new screening ZIPs files import the data")    
-    parser.add_argument("--monitornewfolder", dest="monitornewfolder", action="store_const", const="monitornewfolder", help="Monitor specific path for new screening (expanded) data and import the data")
+    parser.add_argument("--deletematchinglogs", dest="deletematchinglogs", action="store_const", const="Provide an EVTX file and delete matching records from Elastic", help="")    
+
     parser.add_argument("ZIP_or_hostname_or_FQDN", metavar="A ZIP file, short hostname or FQDN", type=str, help="ZIP, hostname or FQDN")
     args = parser.parse_args()
 
@@ -381,34 +501,50 @@ if __name__ == '__main__':
         logger.info("Start processing import")
         process(config, args.ZIP_or_hostname_or_FQDN)
         logger.info("End processing import")
-    elif args.monitornew == "monitornew":
-        monitornew(config, args.ZIP_or_hostname_or_FQDN)
-    elif args.monitornewfolder == "monitornewfolder":
-        monitornewfolder(config, args.ZIP_or_hostname_or_FQDN)        
+    elif args.processevtx == "processevtx":
+        logger.info("Start processevtx")
+        processevtx(config, args.ZIP_or_hostname_or_FQDN)
+        logger.info("End processevtxt")
     elif args.processfolder == "processfolder":
-        logger.info("Start processing import - asset")
+        logger.info("Start processing folder")
         processfolder(config, args.ZIP_or_hostname_or_FQDN)
-        logger.info("End processing import - asset")
-    elif args.report == "report":
-        logger.info("Start screening report")
-        report(config, args.ZIP_or_hostname_or_FQDN)
-        logger.info("End screening report")
-    elif args.deletescreening == "deletescreening":
-        logger.info("Start screening delete")
-        delete_screening(config, args.ZIP_or_hostname_or_FQDN)
-        logger.info("End screening delete")
-    elif args.deletescreeninglogs == "deletescreeninglogs":
-        logger.info("Start log delete")
-        delete_logs(config, args.ZIP_or_hostname_or_FQDN)
-        logger.info("End log delete")
+        logger.info("End processing folder")
+    elif args.monitornew == "monitornew":
+        logger.info("Start monitornew")        
+        monitornew(config, args.ZIP_or_hostname_or_FQDN)
+        logger.info("End monitornew")        
+    elif args.monitornewfolder == "monitornewfolder":
+        logger.info("Start monitornewfolder")        
+        monitornewfolder(config, args.ZIP_or_hostname_or_FQDN)     
+        logger.info("End monitornewfolder")   
+    elif args.monitornewevtx == "monitornewevtx":
+        logger.info("Start monitornewevtx")        
+        monitornewevtx(config, args.ZIP_or_hostname_or_FQDN)     
+        logger.info("End monitornewevtx")           
     elif args.listscreening == "listscreening":
         logger.info("Start listscreening")
-        list_screening(config)
+        listscreening(config)
         logger.info("End listscreening")
     elif args.listscreeninglogs == "listscreeninglogs":
         logger.info("Start listscreeninglogs")
-        list_screeninglogs(config)
+        listscreeninglogs(config)
         logger.info("End listscreeninglogs")
+    elif args.deletescreening == "deletescreening":
+        logger.info("Start deletescreening")
+        deletescreening(config, args.ZIP_or_hostname_or_FQDN)
+        logger.info("End deletescreening")
+    elif args.deletescreeninglogs == "deletescreeninglogs":
+        logger.info("Start deletescreeninglogs")
+        deletescreeninglogs(config, args.ZIP_or_hostname_or_FQDN)
+        logger.info("End deletescreeninglogs")
+    elif args.report == "report":
+        logger.info("Start screening report")
+        report(config, args.ZIP_or_hostname_or_FQDN)
+        logger.info("End screening report")        
     elif args.createes == "createes":
         logger.info("Create Elasticsearch index")
         create_es(config)
+    elif args.deletematchinglogs == "deletematchinglogs":
+        logger.info("Start deletematchinglogs")
+        deletematchinglogs(config, args.ZIP_or_hostname_or_FQDN)
+        logger.info("End deletematchinglogs")        

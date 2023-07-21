@@ -103,4 +103,7 @@ config = {
     "always_import": True,
     "keep_output_files": False,
     "import_state_file": "/nsm/security-screening/securityonion/scripts/import_state.float",
+	"always_delete_outputfiles": True,
+    "processevtx_logfolder": "logs_copy",
+    "deletematchinglogs": False,
 }
