@@ -1,0 +1,17 @@
+certifi==2022.12.7
+chardet==5.0.0
+configparser==4.0.2
+dataclasses==0.8
+elastic-transport==8.4.0
+elasticsearch==8.6.1
+hexdump==3.3
+logger==1.4
+lxml==4.9.3
+more-itertools==5.0.0
+pep8==1.7.1
+pyparsing==2.4.7
+python-evtx==0.7.4
+six==1.16.0
+termcolor==1.1.0
+urllib3==1.26.14
+zipp==1.0.0

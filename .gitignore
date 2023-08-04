@@ -1,2 +1,5 @@
 elastic.py
 screening_config.py
+securityonion/scripts/venv/
+securityonion/training-version/
+securityonion/ics/
