@@ -95,7 +95,7 @@ config = {
             ],
     "antimalware_software": ['MsMpEng.exe', 'mcshield.exe', 'Mcshield.exe'],
     "drop_es_index": False,
-    "execute_chainsaw": True,
+    "execute_chainsaw": False,
     "chainsaw_app": "../chainsaw/chainsaw_x86_64-unknown-linux-mus",
     "chainsaw_sigma": "../chainsaw/sigma/",
     "chainsaw_rules": "../chainsaw/rules/",
@@ -104,6 +104,6 @@ config = {
     "keep_output_files": False,
     "import_state_file": "/nsm/security-screening/securityonion/scripts/import_state.float",
 	"always_delete_outputfiles": True,
-    "processevtx_logfolder": "logs_copy",
+    "processevtx_logfolder": False, #"logs_copy",
     "deletematchinglogs": False,
 }

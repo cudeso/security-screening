@@ -352,7 +352,7 @@ def listscreeninglogs(config):
           "range": {
             "@timestamp": {
               "format": "strict_date_optional_time",
-              "gte": "2021-01-01T00:00:00.00Z"
+              "gte": "2015-01-01T00:00:00.00Z"
             }
           }
         },

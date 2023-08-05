@@ -73,7 +73,7 @@ Set the default keyboard for the graphical user via the regional settings.
 
 ## Firewall access
 
-Ensure you can access Security Onion (and Elstic) from your analyst workstation. You can update the firewall settings with 
+Ensure you can access Security Onion (and Elastic) from your analyst workstation. You can update the firewall settings with 
 
 ```
 sudo so-firewall
@@ -82,24 +82,26 @@ sudo so-allow
 sudo so-firewall includehost analyst 1.2.3.4
 ```
 
-## Create an Elastic API key
+## Ensure indexes are kept longer
 
-Log in to Security Onion and go to Elastic. Under Stack Management, Security select **API keys** and click **Create API key**. Note down the API key, you need it to configure the processing script.
+Elasticsearch Curator curates Elasticsearch indices, meaning closing and deleting older indexes. For our purposes, it's necessary to set the close and delete to a longer period.
 
-## Elastic interface
+```
+sudo vi /opt/so/saltstack/local/pillar/global.sls
+```
 
-Change the Elastic interface to reflect your preferences. Within the Discover tab, click Options, View Discover Options.
+Then change the close and delete setting for `so-beats` under the elasticsearch:index_settings section.
 
-- Enable **Document Explorer or classic view**
-- Search for Dark Mode, disable **Dark mode**
+```
+close: 550
+delete: 730
+```
 
-## Transfer files
+Then restart curator.
 
-1. Create an ISO image of the tar.gz with all data: `mkisofs -o security-screening.iso security-screening.tar.gz`
-2. Mount ISO in VM
-3. Copy tar.gz to new VM, expand in `security-screening/securityonion`
-4. If needed, replace the references to the older username in the venv
-   1. `cd security-screening/securityonion/scripts/venv ; find . -type f | xargs sed -i 's/olduser/analyst/g'`
+```
+sudo so-curator-restart
+```
 
 # Setup Processing environment
 
@@ -108,11 +110,48 @@ Change the Elastic interface to reflect your preferences. Within the Discover ta
 The processing of the data requires sudo permissions. As the root user add these lines to `/etc/sudoers`
 
 ```
+sudo vi /etc/sudoers
+```
+
+```
 analyst ALL=(root) NOPASSWD:/usr/sbin/so-import-evtx
 analyst ALL=(root) NOPASSWD:/usr/bin/rm
 ```
 
-## Python virtual environment
+## Setup directory
+
+Create the `security-screening` directory in the `/nsm` directory and create a symlink pointing to the home directory.
+
+```
+sudo mkdir /nsm/security-screening
+sudo ln -s /nsm/security-screening /home/analyst/security-screening
+sudo chown analyst /nsm/security-screening
+```
+
+## Transfer security-screening files to airgapped Security Onion
+
+1. Mount ISO in VM
+2. Copy tar.gz to new VM
+3. Expand in `security-screening`
+4. If needed, replace the references to the older username in the venv
+
+```
+cd /home/analyst/security-screening/securityonion/scripts/venv
+find . -type f | xargs sed -i 's/olduser/analyst/g'
+```
+
+## Directories
+
+Create a directory `input` and `output` in security-screening/securityonion
+
+```
+mkdir /home/analyst/security-screening/securityonion/input
+mkdir /home/analyst/security-screening/securityonion/output
+```
+
+## Python virtual environment 
+
+**(requires Internet connection)**
 
 Create the Python virtual environment
 
@@ -125,26 +164,52 @@ Required libraries:
 ```
 certifi 
 chardet 
+configparser
 dataclasses 
 elastic-transport 
 elasticsearch 
+hexdump
 logger
+lxml
+more-itertools
 pep8
 pip 
+pyparsing
+python-evtx
 setuptools
+six
 termcolor 
 urllib3 
+zipp
 ```
+
+
+## Create an Elastic API key
+
+Log in to Security Onion and go to Elastic. Under Stack Management, Security select **API keys** and click **Create API key**. Note down the API key, you need it to configure the processing script.
 
 ## Configuration file
 
 Update `elasticsearch_api_key` in `config.py` with the previously created API key.
 
+## Elastic web interface
+
+Change the Elastic web interface to reflect your preferences. Within the Discover tab, click Options, View Discover Options.
+
+- Enable **Document Explorer or classic view**
+- Search for Dark Mode, disable **Dark mode**
+- Change `timepicker:timeDefaults`
+  ```
+  {
+  "from": "now-365d",
+  "to": "now"
+  }
+  ```
 
 ## Enable the Python virtual environment
 
 ```
-source venv/bin/active
+source /home/analyst/security-screening/securityonion/scripts/venv/bin/activate
 ```
 
 Launch the script to create the Elastic index for the security screening.
@@ -160,9 +225,26 @@ Verify in Elastic that the index has been created under Stack Management, Index 
 
 Import the Kibana saved objects to have the different visualisations available. Under Stack Management, Kibana choose **Saved Objects**. Then click **Import**, select the file `screening_kibana_export.ndjson` and choose to check for existing objects and overwrite conflicts. Then click on **Import**.
 
+Do the same for `screening_log_details_kibana_export.ndjson`.
+
 Verify that the screening dashboard has been imported by going to Home, Analytics and choose **Dashboard**. Search for the security screenings dashbaoard.
 
-## Chainsaw 
+## Install SMB client (optional)
+
+Install the SMB client to import screening data from a remote storage.
+
+```
+sudo rpm -i /home/analyst/security-screening/securityonion/ics/cifs/keyutils-1.5.8-3.el7.x86_64.rpm
+sudo rpm -i /home/analyst/security-screening/securityonion/ics/cifs/cifs-utils-6.2-10.el7.x86_64.rpm
+```
+
+Create the future mount point
+
+```
+mkdir /nsm/security-screening/securityonion/smb/
+```
+
+## Chainsaw (optional)
 
 Make sure that the full version of Chainsaw, including the detection rules, is in `security-screening/securityonion/chainsaw`. 
 
@@ -173,10 +255,6 @@ Afterwards make sure that the Chainsaw binary is executable.
 ```
 chmod +x security-screening/securityonion/chainsaw/chainsaw_x86_64-unknown-linux-mus
 ```
-
-## Directories
-
-Create a directory `input` and `output` in security-screening/securityonion
 
 # Execute processing of security screening files
 
@@ -213,6 +291,11 @@ Different options for processing
     - Set path to Windows log file with setting from `processevtx_logfolder`
     - Read Windows logs
     - Delete extracted files
+
+## Monitor
+
+Monitor a directory for new files
+
 - `monitornew`
   - Input: foldername
   - Actions:
@@ -234,22 +317,44 @@ Different options for processing
   - Actions:
     - Read state from `import_state_file`
     - Read all updated folders in foldername
+    - Used for 'extracted' versions
     - Check if changed time is newer than state file
       - If newer, then run `processfolder`
     - - Update state
+
+## List and delete results
+
+- `listscreening`
+- `listscreeninglogs`
+- `deletelogs`
+  - Input FQDN
+  - Actions:
+    - Delete logs for FQDN
+- `deletescreening`
+  - Input hostname
+  - Actions:
+    - Delete screening data for hostname
+
+### Delete screening results
+
+`venv/bin/python process-security-screening.py --deletescreening HOSTNAME`
+
+### Delete log files
+
+`venv/bin/python process-security-screening.py --deletelogs FQDN`
+
+## Misc
+
 - `report`
   - Input: ZIP file name
   - Actions:
     - Extract ZIP
     - Process audit files (system, software, network, users, av)
-
-## Delete screening results
-
-`venv/bin/python process-security-screening.py --deletescreening HOSTNAME`
-
-## Delete log files
-
-`venv/bin/python process-security-screening.py --deletelogs FQDN`
+- `deletematchinglogs`:
+  - Input EVTX file
+  - Actions:
+    - Delete logs matching system names in evtx file
+  - Can result in `elastic_transport.ConnectionTimeout: Connection timed out` when there's a lot of data, just try a second time
 
 # Demo Elastic queries
 
@@ -265,3 +370,44 @@ You can then use queries in Elastic.
 * Account locked `winlog.event_id:4740`
 * Executed PowerShell `winlog.event_id:4104`
 * New service installed `winlog.event_id:4697`
+
+# Misc
+
+## Monitor a folder for new ZIP files with EVTX files
+
+- Mount SMB directory
+  - `sudo mount -t cifs -o username=joe //1.2.3.4/screening /nsm/security-screening/securityonion/smb/`
+- Execute cronjob after files are copied to the SMB directory
+  - `00 5 * * * cd /home/analyst/security-screening/securityonion/scripts/ ; /home/analyst/security-screening/securityonion/scripts/venv/bin/python process-security-screening.py --monitornewevtx /nsm/security-screening/securityonion/smb`
+
+Config:
+```
+    "always_import": True,
+    "import_state_file": "/nsm/security-screening/securityonion/scripts/import_state.float",
+    "always_delete_outputfiles": True,
+    "processevtx_logfolder": "logs_copy",
+    "deletematchinglogs": False,
+```
+
+## Monitor a folder for new ZIP files with security adit files
+
+- Mount SMB directory
+  - `sudo mount -t cifs -o username=joe //1.2.3.4/screening /nsm/security-screening/securityonion/smb/`
+- Execute cronjob after files are copied to the SMB directory
+  - `00 5 * * * cd /home/analyst/security-screening/securityonion/scripts/ ; /home/analyst/security-screening/securityonion/scripts/venv/bin/python process-security-screening.py --monitornew /nsm/security-screening/securityonion/smb`
+
+Config:
+```
+    "always_import": True,
+    "import_state_file": "/nsm/security-screening/securityonion/scripts/import_state.float",
+    "always_delete_outputfiles": True,
+    "processevtx_logfolder": False, 
+    "deletematchinglogs": False,
+```
+## Update settings in older setups
+
+- Change `timepicker:timeDefaults`
+- Change curator settings
+
+
+Create an ISO image of the tar.gz with all data: `mkisofs -o security-screening.iso security-screening.tar.gz`
