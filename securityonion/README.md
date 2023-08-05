@@ -1,3 +1,37 @@
+- [Security Onion for Security Screening](#security-onion-for-security-screening)
+- [Prepare SecurityOnion for security screening](#prepare-securityonion-for-security-screening)
+  - [Download ISO](#download-iso)
+  - [Prepare VM](#prepare-vm)
+  - [Install VM](#install-vm)
+  - [Set the correct keyboard](#set-the-correct-keyboard)
+  - [Install GUI for analyst](#install-gui-for-analyst)
+  - [Firewall access](#firewall-access)
+  - [Ensure indexes are kept longer](#ensure-indexes-are-kept-longer)
+- [Setup Processing environment](#setup-processing-environment)
+  - [Security Onion sudo](#security-onion-sudo)
+  - [Setup directory](#setup-directory)
+  - [Transfer security-screening files to airgapped Security Onion](#transfer-security-screening-files-to-airgapped-security-onion)
+  - [Directories](#directories)
+  - [Python virtual environment](#python-virtual-environment)
+  - [Create an Elastic API key](#create-an-elastic-api-key)
+  - [Configuration file](#configuration-file)
+  - [Elastic web interface](#elastic-web-interface)
+  - [Enable the Python virtual environment](#enable-the-python-virtual-environment)
+  - [Import the Kibana saved objects](#import-the-kibana-saved-objects)
+  - [Install SMB client (optional)](#install-smb-client-optional)
+  - [Chainsaw (optional)](#chainsaw-optional)
+- [Execute processing of security screening files](#execute-processing-of-security-screening-files)
+  - [Process](#process)
+  - [Monitor](#monitor)
+  - [List and delete results](#list-and-delete-results)
+  - [Misc](#misc)
+- [Demo Elastic queries](#demo-elastic-queries)
+- [Misc](#misc-1)
+  - [Monitor a folder for new ZIP files with EVTX files](#monitor-a-folder-for-new-zip-files-with-evtx-files)
+  - [Monitor a folder for new ZIP files with security adit files](#monitor-a-folder-for-new-zip-files-with-security-adit-files)
+  - [Update settings in older setups](#update-settings-in-older-setups)
+  - [Create security-screening-tools.zip](#create-security-screening-toolszip)
+
 # Security Onion for Security Screening
 
 Use Security Onion to represent data coming from a security screening. This will display the asset information from the auditscript, as well as import the most import Windows (EVTX) log files in Security Onion.
@@ -325,23 +359,19 @@ Monitor a directory for new files
 ## List and delete results
 
 - `listscreening`
+  - Input: "go"
 - `listscreeninglogs`
+  - Input: "go"
 - `deletelogs`
+  - `venv/bin/python process-security-screening.py --deletelogs FQDN`
   - Input FQDN
   - Actions:
     - Delete logs for FQDN
 - `deletescreening`
+  - `venv/bin/python process-security-screening.py --deletescreening HOSTNAME`
   - Input hostname
   - Actions:
     - Delete screening data for hostname
-
-### Delete screening results
-
-`venv/bin/python process-security-screening.py --deletescreening HOSTNAME`
-
-### Delete log files
-
-`venv/bin/python process-security-screening.py --deletelogs FQDN`
 
 ## Misc
 
@@ -409,5 +439,9 @@ Config:
 - Change `timepicker:timeDefaults`
 - Change curator settings
 
+## Create security-screening-tools.zip
 
-Create an ISO image of the tar.gz with all data: `mkisofs -o security-screening.iso security-screening.tar.gz`
+- Create a tar.gz of the data
+- `tar -zcvf /home/analyst/security-screening.tar.gz security-screening`
+- Create the ISO file
+- `mkisofs -o security-screening-tools.iso security-screening.tar.gz`
