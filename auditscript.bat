@@ -1,6 +1,6 @@
 @ECHO OFF
 
-:: Audit script v10
+:: Audit script v11
 ::  v1 : Start
 ::  v2 : Fixed fetching all users ; include localgroups
 ::           Removed bugs with jumping to wrong subs from v1
@@ -21,11 +21,18 @@
 ::       Use sysinternal tools to query psinfo, autostart items and logged-on sessions (step 20)
 :: 		 Query active directory for users, groups, orgunits, sites, domains (step 21)
 ::		 Delete audit directory and create a ZIP archive (step 99)
-::
-
-
+::  v11: Exclude files that make 'git diff' impossible
+::       git_safe: set git_safe to a non-zero value to skip creating files with a lot of "variants"
+::          also create a .gitattributes with "*.csv   diff" so git doesn't consider csv as binary
+::       create_zip: option to configure to create a ZIP file 
+::       run_ad_query_logs
+::       run_sysinternals
 
 set debug=1
+set create_zip=0
+set run_ad_query_logs=0
+set run_sysinternals=0
+set git_safe=1
 
 :: Step 1
 :: Get the computer name
@@ -45,17 +52,44 @@ cd "%aud_dir%"
 
 :: Step 2
 :: Operating system version and system information
+if %git_safe%==0 (
 date /T > date_of_execution.txt
 time /T >> date_of_execution.txt
+)
 
 if %debug%==1 echo "ver"
 ver > ver.txt
 
 if %debug%==1 echo "systeminfo"
-systeminfo > systeminfo.txt
-systeminfo /fo CSV > systeminfo.csv
-msinfo32 /categories +all /report systeminfo_msinfo.xls
+if %git_safe%==0 (
+    systeminfo > systeminfo.txt
+    systeminfo /fo CSV > systeminfo.csv
+    msinfo32 /categories +all /report systeminfo_msinfo.xls
+) else (
+    systeminfo > systeminfo-full.txt
+    setlocal enabledelayedexpansion
+    (for /f "usebackq tokens=*" %%a in (systeminfo-full.txt) do (
+        set "line=%%a"
+        echo !line! | findstr /i /c:"Available Physical Memory" > nul
+        if !errorlevel! neq 0 (
+            echo !line! | findstr /i /c:"System Boot Time" > nul
+            if !errorlevel! neq 0 (
+                echo !line! | findstr /i /c:"Virtual Memory" > nul
+                if !errorlevel! neq 0 (
+                    echo !line!
+                )
+            )
+        )
+    )) > systeminfo.txt
+    endlocal
+    del systeminfo-full.txt
 
+    systeminfo /fo CSV > systeminfo-full.csv
+    (for /f "usebackq tokens=1-9,14-22,24-32 delims=," %%a in (systeminfo-full.csv) do (
+        echo %%a,%%b,%%c,%%d,%%e,%%f,%%g,%%h,%%i,%%j,%%k,%%l,%%m,%%n,%%o,%%p,%%q,%%r,%%s,%%t,%%u,%%v,%%w,%%x
+    )) > systeminfo.csv
+    del systeminfo-full.csv
+)
 
 :: Step 3
 :: Grap info from systeminfo for inventory template
@@ -69,28 +103,28 @@ set inventory_timezone=
 set inventory_productid=
 
 for /f "usebackq tokens=2 delims=:" %%s in (`type systeminfo.txt ^| findstr /B /C:"Host Name:"`) do (
- set inventory_hostname=%%s
+set inventory_hostname=%%s
 )
 for /f "usebackq tokens=2 delims=:" %%s in (`type systeminfo.txt ^| findstr /B /C:"OS Name:"`) do (
- set inventory_osname=%%s
+set inventory_osname=%%s
 )
 for /f "usebackq tokens=2 delims=:" %%s in (`type systeminfo.txt ^| findstr /B /C:"OS Version:"`) do (
- set inventory_osversion=%%s
+set inventory_osversion=%%s
 )
 for /f "usebackq tokens=2,3,4 delims=:" %%s in (`type systeminfo.txt ^| findstr /C:"Original Install Date:"`) do (
- set inventory_installdate=%%s:%%t:%%u
+set inventory_installdate=%%s:%%t:%%u
 )
 for /f "usebackq tokens=2,3,4 delims=:" %%s in (`type systeminfo.txt ^| findstr /C:"System Boot Time:"`) do (
- set inventory_boottime=%%s:%%t:%%u
+set inventory_boottime=%%s:%%t:%%u
 )
 for /f "usebackq tokens=2 delims=:" %%s in (`type systeminfo.txt ^| findstr /B /C:"System Manufacturer:"`) do (
- set inventory_system_manufacturer=%%s
+set inventory_system_manufacturer=%%s
 )
 for /f "usebackq tokens=2,* delims=:" %%s in (`type systeminfo.txt ^| findstr /B /C:"Time Zone:"`) do (
- set inventory_timezone=%%s:%%t
+set inventory_timezone=%%s:%%t
 )
 for /f "usebackq tokens=2 delims=:" %%s in (`type systeminfo.txt ^| findstr /B /C:"Product ID:"`) do (
- set inventory_productid=%%s
+set inventory_productid=%%s
 )
 
 for /f "tokens=* delims= " %%G in ("%inventory_hostname%") do set inventory_hostname=%%G
@@ -120,10 +154,12 @@ if %debug%==1 echo "net use"
 net use > net_use.txt
 if %debug%==1 echo "net view"
 net view > net_view.txt
-if %debug%==1 echo "net config server"
-net config server >> net_config.txt
-if %debug%==1 echo "net config workstation"
-net config workstation >> net_config.txt
+if %git_safe%==0 (
+    if %debug%==1 echo "net config server"
+    net config server >> net_config.txt
+    if %debug%==1 echo "net config workstation"
+    net config workstation >> net_config.txt
+)
 if %debug%==1 echo "net localgroup"
 net localgroup >> net_localgroup.txt
 echo > net_localgroup_detail.txt
@@ -136,14 +172,16 @@ echo > users_detail.txt
 
 for /F "tokens=* delims=  eol=- skip=2" %%a in (net_user.txt) do call :processuser %%a
 
-
+wmic /output:users_detail_wmic.csv 		UserAccount get AccountType, Caption, Description, Disabled, Domain, FullName, LocalAccount, Lockout, Name, PasswordChangeable, PasswordExpires, PasswordRequired, SID /format:csv:"datatype=text":"sortby=FullName"
 
 
 :: Step 5
 :: Network information
 
-if %debug%==1 echo "ipconfig dns"
-ipconfig /displaydns > ipconfig_dnscache.txt
+if %git_safe%==0 (
+    if %debug%==1 echo "ipconfig dns"
+    ipconfig /displaydns > ipconfig_dnscache.txt
+)
 
 if %debug%==1 echo "ipconfig"
 ipconfig /all > ipconfig_all.txt
@@ -159,31 +197,38 @@ if %debug%==1 echo "rpc"
 netsh rpc show >> rpc_config.txt
 
 if %debug%==1 echo "netstat"
-netstat -nao > netstat.txt
-netstat -naob > netstat_naob.txt
+if %git_safe%==0 (
+    netstat -nao > netstat.txt
+    netstat -naob > netstat_naob.txt
 
-if %debug%==1 echo "netstat stats"
-netstat -s > netstat_stats.txt
+    if %debug%==1 echo "netstat stats"
+    netstat -s > netstat_stats.txt
+) else (
+    netstat -na | findstr "LISTENING" > netstat.txt
+)
 
 if %debug%==1 echo "arp"
 arp -a > arp.txt
 arp -a -v > arp_verbose.txt
 
-if %debug%==1 echo "nbtstat"
-nbtstat -n > nbtstat_n.txt
-nbtstat -c > nbtstat_c.txt
-nbtstat -s > nbtstat_s.txt
-
+if %git_safe%==0 (
+    if %debug%==1 echo "nbtstat"
+    nbtstat -n > nbtstat_n.txt
+    nbtstat -c > nbtstat_c.txt
+    nbtstat -s > nbtstat_s.txt
+)
 
 :: Step 6
 :: Running procecess
-if %debug%==1 echo "ps"
-tasklist > tasklist.txt
-tasklist /v > tasklist_verbose.txt
-tasklist /SVC > tasklist_svc.txt
-tasklist /v /FO CSV > tasklist.csv
-tasklist /SVC /FO CSV > tasklist_svc.csv
-tasklist /M /FO CSV > tasklist_loaded_modules.csv
+if %git_safe%==0 (
+    if %debug%==1 echo "ps"
+    tasklist > tasklist.txt
+    tasklist /v > tasklist_verbose.txt
+    tasklist /SVC > tasklist_svc.txt
+    tasklist /v /FO CSV > tasklist.csv
+    tasklist /SVC /FO CSV > tasklist_svc.csv
+    tasklist /M /FO CSV > tasklist_loaded_modules.csv
+)
 
 :: Step 7
 :: Installed software
@@ -198,7 +243,7 @@ for /f "tokens=2,3 delims==" %%a in (temp2.txt) do (echo %%a >> software_list.tx
 del temp1.txt
 del temp2.txt
 
-for /f "usebackq tokens=1,2,3 delims=:" %%i in (`sc query state^= all`) do (
+for /f "usebackq tokens=1,2,3 delims=:" %%i in (`sc query state=all`) do (
   rem echo %%i %%j %%k
   if "%%i"=="SERVICE_NAME" call :%%i %%j %%k
 )
@@ -207,8 +252,10 @@ if %debug%==1 echo "installed - wmic"
 :: wmic  /output:software_list_wmic.csv  product get * /format:"%WINDIR%\System32\wbem\en-US\csv"
 wmic  /output:software_list_wmic.csv  product get * /format:csv
 
-dir /a "C:\Program Files" > software_list_programfiles.txt
-dir /a "C:\Program Files (x86)" > software_list_programfiles_x86.txt
+if %git_safe%==0 (
+    dir /a "C:\Program Files" > software_list_programfiles.txt
+    dir /a "C:\Program Files (x86)" > software_list_programfiles_x86.txt
+)
 
 wmic /output:software_list_hotfixes.csv qfe list /format:csv
 
@@ -226,37 +273,39 @@ wmic /output:software_list_hotfixes.csv qfe list /format:csv
 :: Log configuration setup
 if %debug%==1 echo "log files"
 wevtutil gl Application > log_config_application.txt
-wevtutil gli Application >> log_status_application.txt
 wevtutil gl Security > log_config_security.txt
-wevtutil gli Security >> log_status_security.txt
 wevtutil gl Setup > log_config_setup.txt
-wevtutil gli Setup >> log_status_setup.txt
 wevtutil gl System > log_config_system.txt
-wevtutil gli System >> log_status_system.txt
+if %git_safe%==0 (
+    wevtutil gli Application >> log_status_application.txt
+    wevtutil gli Security >> log_status_security.txt    
+    wevtutil gli Setup >> log_status_setup.txt
+    wevtutil gli System >> log_status_system.txt
+)
 
+if %git_safe%==0 (
+    wevtutil qe Application > log_export_application.txt
+    wevtutil qe Security > log_export_security.txt
+    wevtutil qe System > log_export_system.txt
+    wevtutil qe "Windows PowerShell" > log_export_powershell.txt
 
-wevtutil qe Application > log_export_application.txt
-wevtutil qe Security > log_export_security.txt
-wevtutil qe System > log_export_system.txt
-wevtutil qe "Windows PowerShell" > log_export_powershell.txt
+    wevtutil epl Application application.evtx
+    wevtutil epl System system.evtx
+    wevtutil epl Security security.evtx
+    wevtutil epl Microsoft-Windows-RemoteDesktopServices-RdpCoreTS/Operational rdpcore.evtx
+    wevtutil epl "Windows PowerShell" powershell.evtx
 
-wevtutil epl Application application.evtx
-wevtutil epl System system.evtx
-wevtutil epl Security security.evtx
-wevtutil epl Microsoft-Windows-RemoteDesktopServices-RdpCoreTS/Operational rdpcore.evtx
-wevtutil epl "Windows PowerShell" powershell.evtx
+    wevtutil epl "Microsoft-Windows-Windows Firewall With Advanced Security/ConnectionSecurity" firewall_ConnectionSecurity.evtx
+    wevtutil epl "Microsoft-Windows-Windows Firewall With Advanced Security/ConnectionSecurityVerbose" firewall_ConnectionSecurityVerbose.evtx
+    wevtutil epl "Microsoft-Windows-Windows Firewall With Advanced Security/Firewall" firewall_Firewall.evtx
+    wevtutil epl "Microsoft-Windows-Windows Firewall With Advanced Security/FirewallVerbose" firewall_FirewallVerbose.evtx
 
-wevtutil epl "Microsoft-Windows-Windows Firewall With Advanced Security/ConnectionSecurity" firewall_ConnectionSecurity.evtx
-wevtutil epl "Microsoft-Windows-Windows Firewall With Advanced Security/ConnectionSecurityVerbose" firewall_ConnectionSecurityVerbose.evtx
-wevtutil epl "Microsoft-Windows-Windows Firewall With Advanced Security/Firewall" firewall_Firewall.evtx
-wevtutil epl "Microsoft-Windows-Windows Firewall With Advanced Security/FirewallVerbose" firewall_FirewallVerbose.evtx
+    wevtutil epl "Microsoft-Windows-Terminal-Services-RemoteConnectionManager/Operational" rdp_RemoteConnectionManager.evtx
+    wevtutil epl "Microsoft-Windows-TerminalServices-LocalSessionManager/Operational" rdp_LocalSessionManager.evtx
 
-wevtutil epl "Microsoft-Windows-Terminal-Services-RemoteConnectionManager/Operational" rdp_RemoteConnectionManager.evtx
-wevtutil epl "Microsoft-Windows-TerminalServices-LocalSessionManager/Operational" rdp_LocalSessionManager.evtx
-
-echo "Attempt to copy all log files"
-xcopy /E/H/C/I "%SystemRoot%\System32\Winevt\Logs" logs
-
+    echo "Attempt to copy all log files"
+    xcopy /E/H/C/I "%SystemRoot%\System32\Winevt\Logs" logs
+)
 
 :: Step 10
 :: USB Information
@@ -264,7 +313,7 @@ if %debug%==1 echo "USB"
 reg export "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Enum\USB" reg_enum_usb.txt
 copy %SYSTEMROOT%\inf\setupapi.app.log .
 copy %SYSTEMROOT%\inf\setupapi.dev.log .
-
+:: dos2unix reg_enum_usb.txt ; | grep HKEY | grep -E '^[^\\]*(\\[^\\]*){5}$'
 
 :: Step 11
 :: Driver Information
@@ -275,15 +324,16 @@ driverquery /v /FO CSV > driverquery.csv
 
 :: Step 12
 :: Get scheduled tasks 
-if %debug%==1 echo "scheduled tasks"
-schtasks /query /FO CSV /V >schtasks.csv
-
+if %git_safe%==0 (
+    if %debug%==1 echo "scheduled tasks"
+    schtasks /query /FO CSV /V >schtasks.csv
+)
 
 :: Step 13
 :: Get startup items 
 if %debug%==1 echo "startup items"
 ::wmic /output:wmic_startup.csv startup list full /format:"%WINDIR%\System32\wbem\en-us\csv"
-wmic /output:wmic_startup.csv startup list full /format:csv
+wmic /output:wmic_startup.csv startup get Caption, Command, Description, Location, Name, User /format:csv:"datatype=text":"sortby=Name"
 
 :: Step 14
 :: Get whoami information
@@ -314,53 +364,70 @@ wmic /output:logicaldisk.csv logicaldisk get caption, description, providername,
 :: Step 18
 :: ProcessList via wmic
 if %debug%==1 echo "process list wmic"
-wmic /output:process_list_wmic.csv  process get ProcessID, Caption, ExecutablePath, CreationDate, ParentProcessID, SessionId,CommandLine /format:csv
+if %git_safe%==0 (
+    wmic /output:process_list_wmic.csv  process get ProcessID, Caption, ExecutablePath, CreationDate, ParentProcessID, SessionId,CommandLine /format:csv:"datatype=text":"sortby=Name"
+) else (
+    wmic /output:process_list_wmic_safe.csv process where "not (Name like 'svchost.exe' or CommandLine like 'svchost.exe')"  get Description, CommandLine, ExecutablePath, Name, CSName /format:csv:"datatype=text":"sortby=Name"
+)
+
 
 :: Service list
 if %debug%==1 echo "service list wmic"
-wmic /output:service_list_wmic.csv  service get name, pathname, processid, startmode, state /format:csv
+if %git_safe%==0 (
+    wmic /output:service_list_wmic.csv service get name, pathname, processid, startmode, state /format:csv:"datatype=text":"sortby=Name"
+) else (
+    wmic /output:service_list_wmic_safe.csv service get Caption, Description, DisplayName, Name, PathName, ServiceType, Started, StartMode, StartName, State, Status, SystemName /format:csv:"datatype=text":"sortby=Name"
+)
 
 :: Logon list
-if %debug%==1 echo "logon list wmic"
-wmic /output:logon_wmic.csv logon list full /format:csv
-
+if %git_safe%==0 (
+    if %debug%==1 echo "logon list wmic"
+    wmic /output:logon_wmic.csv logon list full /format:csv
+)
 
 :: Step 19 
 :: Browser data
 if %debug%==1 echo "browser data"
-xcopy "C:\Documents and Settings\%username%\Application Data\Mozilla\Firefox\Profiles\" firefox_profiles_user /E /H /C /I
-xcopy "C:\Users\%username%\AppData\Roaming\Mozilla\Firefox\Profiles\" firefox_profiles /E /H /C /I
-xcopy "C:\Users\%username%\AppData\Local\Google\Chrome\User Data\" chrome_userdata /E /H /C /I
-xcopy "C:\Documents and Settings\%username%\Local Settings\Application Data\Google\Chrome\User Data\" chrome_userdata_user /E /H /C /I
+xcopy "C:\Documents and Settings\%username%\Application Data\Mozilla\Firefox\Profiles\" browser_firefox_profiles_user /E /H /C /I
+xcopy "C:\Users\%username%\AppData\Roaming\Mozilla\Firefox\Profiles\" browser_firefox_profiles /E /H /C /I
+xcopy "C:\Users\%username%\AppData\Local\Google\Chrome\User Data\" browser_chrome_userdata /E /H /C /I
+xcopy "C:\Documents and Settings\%username%\Local Settings\Application Data\Google\Chrome\User Data\" browser_chrome_userdata_user /E /H /C /I
 
 
 :: Step 20
 :: Sysinternal tools
-if %debug%==1 echo "sysinternals"
-"%script_dir%supporttools\psinfo64.exe" /accepteula -h -d -s -c  > systeminfo_psinfo.csv
-"%script_dir%supporttools\autorunsc64.exe" /accepteula -c > sysinternals_autoruns.csv
-"%script_dir%supporttools\PsLoggedon64.exe" /accepteula > psloggedon.txt
+if %run_sysinternals%==1 (
+    if %debug%==1 echo "sysinternals"
+    "%script_dir%supporttools\psinfo64.exe" /accepteula -h -d -s -c  > sysinternals_psinfo.csv
+    "%script_dir%supporttools\autorunsc64.exe" /accepteula -c > sysinternals_autoruns.csv
+    "%script_dir%supporttools\PsLoggedon64.exe" /accepteula > sysinternals_psloggedon.txt
+)
 
 
 :: Step 21 
 :: AD-data
-mkdir adquery_logs
-"%script_dir%supporttools\csvde.exe" -v -r "(objectClass=user)" -n -j adquery_logs\ -f adquery_users.csv
-"%script_dir%supporttools\csvde.exe" -v -r "(objectClass=group)" -n -j adquery_logs\ -f adquery_group.csv
-"%script_dir%supporttools\csvde.exe" -v -r "(objectClass=organizationalUnit)" -n -j adquery_logs\ -f adquery_orgunits.csv
-"%script_dir%supporttools\csvde.exe" -v -r "(objectClass=domain)" -n -j adquery_logs\ -f adquery_domain.csv
-"%script_dir%supporttools\csvde.exe" -v -r "(objectClass=site)" -n -j adquery_logs\ -f adquery_site.csv
+if %run_ad_query_logs%==1 (
+    mkdir adquery_logs
+    "%script_dir%supporttools\csvde.exe" -v -r "(objectClass=user)" -n -j adquery_logs\ -f adquery_users.csv
+    "%script_dir%supporttools\csvde.exe" -v -r "(objectClass=group)" -n -j adquery_logs\ -f adquery_group.csv
+    "%script_dir%supporttools\csvde.exe" -v -r "(objectClass=organizationalUnit)" -n -j adquery_logs\ -f adquery_orgunits.csv
+    "%script_dir%supporttools\csvde.exe" -v -r "(objectClass=domain)" -n -j adquery_logs\ -f adquery_domain.csv
+    "%script_dir%supporttools\csvde.exe" -v -r "(objectClass=site)" -n -j adquery_logs\ -f adquery_site.csv
+)
 
 
 :: Step 99
 :: Make a ZIP archive
 ::cd ..
-"%script_dir%supporttools\7za.exe" a -bd -tzip "%aud_dir%.zip" "%aud_dir%"
-cd "%script_dir%"
-rmdir /S /Q "%aud_dir%"
+if %create_zip%==1 (
+    "%script_dir%supporttools\7za.exe" a -bd -tzip "%aud_dir%.zip" "%aud_dir%"
+    cd "%script_dir%"
+    rmdir /S /Q "%aud_dir%
+) else (
+    cd "%script_dir%"
+)
 
-
-:: END
+: END
 pause 
 
 exit /b
@@ -432,3 +499,4 @@ goto :processuser
     rem echo "%%s", "%%t", "%%u", "%%v"
   )
   echo %service_pid%, %service_state%, %service_type%, %service_name%, %service_properties%, %service_display_name% >> SERVICE_list.txt
+  
