@@ -206,7 +206,7 @@ def monitornew(config, folder):
     f.close()
 
 def monitornewevtx(config, folder):
-    logger.info("Monitor folder {} for new ZIP files with Windows lgos".format(folder))    
+    logger.info("Monitor folder {} for new ZIP files with Windows logs".format(folder))    
     try:
         f = open(config["import_state_file"], "r")
         previous_state = float(f.read())
@@ -219,7 +219,10 @@ def monitornewevtx(config, folder):
     for asset in dirs_in_folder:
         mtime = os.path.getmtime(asset)
         if mtime > previous_state:
-            processevtx(config, asset)
+          try:
+             processevtx(config, asset)
+          except:
+             logger.error("Failed processevtx for {}".format(asset))
     
     current_state = time.time()        
     f = open(config["import_state_file"], "w")
@@ -245,7 +248,7 @@ def processevtx(config, zipfile):
     logger.info("Process ZIP {} with EVTX".format(zipfile))
     full_output_path = extract_zip(zipfile)
     if full_output_path:
-        logger.info("Process Windows logs")        
+        logger.info("Process Windows logs")
         process_windows_logs(full_output_path, config.get("always_import", False), config.get("processevtx_logfolder", False))
         
         if config.get("always_delete_outputfiles", False):
@@ -383,25 +386,29 @@ def listscreeninglogs(config):
 def report(config, zipfile):
 
     logger.info("Process ZIP")
-    full_output_path = extract_zip(zipfile)
+    dnq=True
+    if dnq:
+        # iconv -c -f CP1252 -t UTF-8 net_user.txt.orig > net_user.txt
+        # cp systeminfo.csv systeminfo.csv.orig ; iconv -c -f CP1252 -t UTF-8 systeminfo.csv.orig > systeminfo.csv ; cp netstat.txt netstat.txt.orig ; iconv -c -f CP1252 -t UTF-8 netstat.txt.orig > netstat.txt ; cp tasklist.csv tasklist.csv.orig ;  iconv -c -f CP1252 -t UTF-8 tasklist.csv.orig > tasklist.csv ; cp users_detail.txt users_detail.txt.org ;  iconv -c -f CP1252 -t UTF-8 users_detail.txt.org > users_detail.txt
+        full_output_path = zipfile
+        #dnq=False
+    else:
+        full_output_path = extract_zip(zipfile)
+
     if full_output_path:
         logger.info("Process screening files")
 
         logger.info("Audit files: system info for {}".format(full_output_path))
         print(colored("Audit files: system info for {}".format(full_output_path)))
         audit_hostname = screening_system_name(config, False, full_output_path)
-
         logger.info("Audit files: software list for {}".format(audit_hostname))
-        software_list(config, False, full_output_path, audit_hostname)
-
+        software_list(config, False, full_output_path, audit_hostname, dnq)
         logger.info("Audit files: listening services for {}".format(audit_hostname))
-        listening_services(config, False, full_output_path, audit_hostname)
-
+        listening_services(config, False, full_output_path, audit_hostname, dnq)
         logger.info("Audit files: user accounts for {}".format(audit_hostname))
-        user_accounts(config, False, full_output_path, audit_hostname)
-
+        user_accounts(config, False, full_output_path, audit_hostname, False)
         logger.info("Audit files: AV for {}".format(audit_hostname))
-        anti_virus(config, False, full_output_path, audit_hostname)
+        anti_virus(config, False, full_output_path, audit_hostname, dnq)
 
 def deletematchinglogs(config, evtx_file_path):
     first_timestamp = False

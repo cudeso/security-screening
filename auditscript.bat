@@ -29,10 +29,10 @@
 ::       run_sysinternals
 
 set debug=1
-set create_zip=0
-set run_ad_query_logs=0
-set run_sysinternals=0
-set git_safe=1
+set create_zip=1
+set run_ad_query_logs=1
+set run_sysinternals=1
+set git_safe=0
 
 :: Step 1
 :: Get the computer name
