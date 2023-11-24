@@ -6,6 +6,7 @@
   - [Set the correct keyboard](#set-the-correct-keyboard)
   - [Install GUI for analyst](#install-gui-for-analyst)
   - [Firewall access](#firewall-access)
+  - [Disable full packet capture](#disable-full-packet-capture)
   - [Ensure indexes are kept longer](#ensure-indexes-are-kept-longer)
 - [Setup Processing environment](#setup-processing-environment)
   - [Security Onion sudo](#security-onion-sudo)
@@ -114,6 +115,27 @@ sudo so-firewall
 sudo so-allow
 
 sudo so-firewall includehost analyst 1.2.3.4
+```
+
+## Disable full packet capture
+
+You can disable full packet capture by disabling the **Stenographer** service.
+
+```
+sudo vi /opt/so/saltstack/local/pillar/global.sls
+```
+
+Add (or edit)
+
+```
+steno:
+  enabled: false
+```
+
+You can manually force the service to stop with 
+
+```
+so-pcap-stop
 ```
 
 ## Ensure indexes are kept longer
