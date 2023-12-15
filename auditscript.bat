@@ -172,7 +172,7 @@ echo > users_detail.txt
 
 for /F "tokens=* delims=  eol=- skip=2" %%a in (net_user.txt) do call :processuser %%a
 
-wmic /output:users_detail_wmic.csv 		UserAccount get AccountType, Caption, Description, Disabled, Domain, FullName, LocalAccount, Lockout, Name, PasswordChangeable, PasswordExpires, PasswordRequired, SID /format:csv:"datatype=text":"sortby=FullName"
+wmic /output:users_detail_wmic.csv 		UserAccount where "LocalAccount=True" get AccountType, Caption, Description, Disabled, Domain, FullName, LocalAccount, Lockout, Name, PasswordChangeable, PasswordExpires, PasswordRequired, SID /format:csv:"datatype=text":"sortby=FullName"
 
 
 :: Step 5
@@ -252,10 +252,9 @@ if %debug%==1 echo "installed - wmic"
 :: wmic  /output:software_list_wmic.csv  product get * /format:"%WINDIR%\System32\wbem\en-US\csv"
 wmic  /output:software_list_wmic.csv  product get * /format:csv
 
-if %git_safe%==0 (
-    dir /a "C:\Program Files" > software_list_programfiles.txt
-    dir /a "C:\Program Files (x86)" > software_list_programfiles_x86.txt
-)
+dir /a "C:\Program Files" > software_list_programfiles.txt
+dir /a "C:\Program Files (x86)" > software_list_programfiles_x86.txt
+
 
 wmic /output:software_list_hotfixes.csv qfe list /format:csv
 
@@ -276,36 +275,33 @@ wevtutil gl Application > log_config_application.txt
 wevtutil gl Security > log_config_security.txt
 wevtutil gl Setup > log_config_setup.txt
 wevtutil gl System > log_config_system.txt
-if %git_safe%==0 (
-    wevtutil gli Application >> log_status_application.txt
-    wevtutil gli Security >> log_status_security.txt    
-    wevtutil gli Setup >> log_status_setup.txt
-    wevtutil gli System >> log_status_system.txt
-)
+wevtutil gli Application >> log_status_application.txt
+wevtutil gli Security >> log_status_security.txt    
+wevtutil gli Setup >> log_status_setup.txt
+wevtutil gli System >> log_status_system.txt
 
-if %git_safe%==0 (
-    wevtutil qe Application > log_export_application.txt
-    wevtutil qe Security > log_export_security.txt
-    wevtutil qe System > log_export_system.txt
-    wevtutil qe "Windows PowerShell" > log_export_powershell.txt
+wevtutil qe Application > log_export_application.txt
+wevtutil qe Security > log_export_security.txt
+wevtutil qe System > log_export_system.txt
+wevtutil qe "Windows PowerShell" > log_export_powershell.txt
 
-    wevtutil epl Application application.evtx
-    wevtutil epl System system.evtx
-    wevtutil epl Security security.evtx
-    wevtutil epl Microsoft-Windows-RemoteDesktopServices-RdpCoreTS/Operational rdpcore.evtx
-    wevtutil epl "Windows PowerShell" powershell.evtx
+wevtutil epl Application application.evtx
+wevtutil epl System system.evtx
+wevtutil epl Security security.evtx
+wevtutil epl Microsoft-Windows-RemoteDesktopServices-RdpCoreTS/Operational rdpcore.evtx
+wevtutil epl "Windows PowerShell" powershell.evtx
 
-    wevtutil epl "Microsoft-Windows-Windows Firewall With Advanced Security/ConnectionSecurity" firewall_ConnectionSecurity.evtx
-    wevtutil epl "Microsoft-Windows-Windows Firewall With Advanced Security/ConnectionSecurityVerbose" firewall_ConnectionSecurityVerbose.evtx
-    wevtutil epl "Microsoft-Windows-Windows Firewall With Advanced Security/Firewall" firewall_Firewall.evtx
-    wevtutil epl "Microsoft-Windows-Windows Firewall With Advanced Security/FirewallVerbose" firewall_FirewallVerbose.evtx
+wevtutil epl "Microsoft-Windows-Windows Firewall With Advanced Security/ConnectionSecurity" firewall_ConnectionSecurity.evtx
+wevtutil epl "Microsoft-Windows-Windows Firewall With Advanced Security/ConnectionSecurityVerbose" firewall_ConnectionSecurityVerbose.evtx
+wevtutil epl "Microsoft-Windows-Windows Firewall With Advanced Security/Firewall" firewall_Firewall.evtx
+wevtutil epl "Microsoft-Windows-Windows Firewall With Advanced Security/FirewallVerbose" firewall_FirewallVerbose.evtx
 
-    wevtutil epl "Microsoft-Windows-Terminal-Services-RemoteConnectionManager/Operational" rdp_RemoteConnectionManager.evtx
-    wevtutil epl "Microsoft-Windows-TerminalServices-LocalSessionManager/Operational" rdp_LocalSessionManager.evtx
+wevtutil epl "Microsoft-Windows-Terminal-Services-RemoteConnectionManager/Operational" rdp_RemoteConnectionManager.evtx
+wevtutil epl "Microsoft-Windows-TerminalServices-LocalSessionManager/Operational" rdp_LocalSessionManager.evtx
 
-    echo "Attempt to copy all log files"
-    xcopy /E/H/C/I "%SystemRoot%\System32\Winevt\Logs" logs
-)
+echo "Attempt to copy all log files"
+xcopy /E/H/C/I "%SystemRoot%\System32\Winevt\Logs" logs
+
 
 :: Step 10
 :: USB Information
@@ -324,10 +320,9 @@ driverquery /v /FO CSV > driverquery.csv
 
 :: Step 12
 :: Get scheduled tasks 
-if %git_safe%==0 (
-    if %debug%==1 echo "scheduled tasks"
-    schtasks /query /FO CSV /V >schtasks.csv
-)
+if %debug%==1 echo "scheduled tasks"
+schtasks /query /FO CSV /V >schtasks.csv
+
 
 :: Step 13
 :: Get startup items 
