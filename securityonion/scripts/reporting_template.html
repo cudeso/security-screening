@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Security Onion report</title>
+    <style>
+
+        h2 {
+            color: #333;
+            font-family: "tahoma";
+            text-align: center;
+            font-size: 2em;
+            margin: 0;
+        }
+        h5 { 
+            font-family: "tahoma"; 
+            text-align: center;
+            font-size: 1em;
+            font-weight: lighter;
+        }
+
+        table, table.dataframe {
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 10px;
+        }
+
+        table.dataframe tbody, table.dataframe td {
+            font-size: 10px;
+            text-align: left;
+            padding: 2px;
+        }
+        td {
+            text-align: center;
+            padding: 5px;
+            font-size: 10px;            
+        }
+        img.charts {
+            height: 300px;
+            width: 300px;            
+        }
+
+    </style>
+   
+  </head>
+  <body>
+    <h2 >{{report_title}}</h2>
+    <h5 >Report date: <strong>{{report_date}}</strong> - Hosts in screening: <strong>{{screening_number_hosts}}</strong></h5>
+    </hr>
+
+    <h3 style="text-align:center">User activity</h3>
+    <p style="text-align:center"></p>
+        <h4>New users</h4>
+        {{monitoring_new_users.to_html(index=False).replace('style="text-align: right;"', '') | safe}}<br />
+        <h4>Accounts locked</h4>
+        {{monitoring_account_locked.to_html(index=False).replace('style="text-align: right;"', '') | safe}}<br />        
+        <h4>Password resets</h4>
+        {{monitoring_password_reset_attempt.to_html(index=False).replace('style="text-align: right;"', '') | safe}}<br />
+        <h4>Recent failed logins</h4>
+        {{monitoring_failed_logins.to_html(index=False).replace('style="text-align: right;"', '') | safe}}<br />        
+        <h4>Recent RDP logins</h4>
+        {{monitoring_logins_rdp.to_html(index=False).replace('style="text-align: right;"', '') | safe}}<br />    
+        <h4>Local group membership changes</h4>
+        {{monitoring_local_group_membership_change.to_html(index=False).replace('style="text-align: right;"', '') | safe}}<br /> 
+        <h4>Recent user logins</h4>
+        {{monitoring_logins.to_html(index=False).replace('style="text-align: right;"', '') | safe}}<br />
+        </p>
+    </hr>
+
+    <h3 style="text-align:center">Scheduled tasks</h3>
+    <p style="text-align:center"></p>
+        <h4>Rare scheduled tasks</h4>
+        {{monitoring_rare_scheduled_tasks.to_html(index=False).replace('style="text-align: right;"', '') | safe}}<br />
+        </p>
+    </hr>
+
+    <h3 style="text-align:center">Windows services</h3>
+    <p style="text-align:center"></p>
+        <h4>New Windows services</h4>
+        {{monitoring_new_services.to_html(index=False).replace('style="text-align: right;"', '') | safe}}<br />
+        </p>
+    </hr>
+
+    <h3 style="text-align:center">PowerShell</h3>
+    <p style="text-align:center"></p>
+        <h4>Rare PowerShell script</h4>
+        {{monitoring_rare_powershell.to_html(index=False).replace('style="text-align: right;"', '') | safe}}<br />
+        </p>
+    </hr>
+
+    <h3 style="text-align:center">Operating systems</h3>
+    <p style="text-align:center"></p>
+        {{screening_os_table_chart}}<br />
+        {{screening_os_table_details.to_html(index=False).replace('style="text-align: right;"', '') | safe}}<br />
+        </p>
+    </hr>
+
+    <h3 style="text-align:center">Software</h3>
+    <p style="text-align:center"></p>
+        <h4>Rare software</h4>
+        {{screening_software_table_details_rare.to_html(index=False).replace('style="text-align: right;"', '') | safe}}<br />
+        <h4>Software</h4>
+        {{screening_software_table_details.to_html(index=False).replace('style="text-align: right;"', '') | safe}}<br />
+        {{screening_software.to_html(index=False).replace('style="text-align: right;"', '') | safe}}<br />
+        </p>
+    </hr>
+
+    <h3 style="text-align:center">Users</h3>
+    <p style="text-align:center"></p>
+        {{screening_users_table_details.to_html(index=False).replace('style="text-align: right;"', '') | safe}}<br />
+        <h4>Active users</h4>
+        {{screening_active_users_chart}}
+        {{screening_active_users.to_html(index=False).replace('style="text-align: right;"', '') | safe}}<br />
+        <h4>Expiration date users</h4>
+        {{screening_expiration_date_users_chart}}
+        {{screening_expiration_date_users.to_html(index=False).replace('style="text-align: right;"', '') | safe}}<br />
+        <h4>Last logon users</h4>
+        {{screening_last_logon_date_users_chart}}
+        {{screening_last_logon_date_users.to_html(index=False).replace('style="text-align: right;"', '') | safe}}<br />
+        </p>
+    </hr>    
+
+    <h3 style="text-align:center">Anti-virus</h3>
+    <p style="text-align:center"></p>
+        {{screening_av_status_details_chart}}
+        {{screening_av_status_details.to_html(index=False).replace('style="text-align: right;"', '') | safe}}<br />
+        </p>
+    </hr>    
+  </body>
+</html>
+

@@ -323,6 +323,64 @@ def deletescreeninglogs(config, hostname):
     else:
         print("No valid hostname supplied")
 
+def purgelogsscreening(config):
+    query = {
+    "bool": {
+      "must": [],
+      "filter": [],
+      "should": [],
+      "must_not": []
+       }
+    }
+    hostnames = []
+    result = elasticsearch.search(index="screening-results-*", query=query, source="hostname", size=config["elasticsearch_max_results"])
+    if "hits" in result and "total" in result["hits"]:
+        for hostname in result["hits"]["hits"]:
+            if hostname["_source"]["hostname"] not in hostnames:
+                hostnames.append(hostname["_source"]["hostname"])
+    for hostname in hostnames:
+        query = {"bool": {"must": [], "filter": [{"match_phrase": {
+                "hostname": hostname
+            }}], "should": [], "must_not": []}}
+        result = elasticsearch.delete_by_query(index="screening-results-*", query=query)
+        logger.info("Deleted {}".format(result))
+
+    query = {
+    "bool": {
+      "must": [],
+      "filter": [
+        {
+          "range": {
+            "@timestamp": {
+              "format": "strict_date_optional_time",
+              "gte": "2015-01-01T00:00:00.00Z"
+            }
+          }
+        },
+        {
+          "match_phrase": {
+            "event.module": "windows_eventlog"
+          }
+        }
+      ],
+      "should": [],
+      "must_not": []
+    }
+        }
+
+    aggregations = {"winlog.computer_name": {"terms": {"field": "winlog.computer_name"}}}
+    result = elasticsearch.search(index="so-beats-*", query=query, aggregations=aggregations, source="winlog.computer_name", size=10000)
+    computer_names = []
+    if "hits" in result and "total" in result["hits"]:
+        for computer_name in result["hits"]["hits"]:
+            if computer_name["_source"]["winlog"]["computer_name"] not in computer_names:
+                computer_names.append(computer_name["_source"]["winlog"]["computer_name"])
+    for hostname in computer_names:
+        query = {"bool": {"must": [], "filter": [{"match_phrase": {
+                "winlog.computer_name": hostname
+            }}], "should": [], "must_not": []}}
+        result = elasticsearch.delete_by_query(index="so-beats-*", query=query)
+        logger.info("Deleted {}".format(result))                
 
 def listscreening(config):
     query = {
@@ -496,6 +554,7 @@ if __name__ == '__main__':
     parser.add_argument("--listscreening", dest="listscreening", action="store_const", const="listscreening", help="List security screening data hostnames.")
     parser.add_argument("--listscreeninglogs", dest="listscreeninglogs", action="store_const", const="listscreeninglogs", help="List security screening logs FQDNs.")
     parser.add_argument("--deletescreening", dest="deletescreening", action="store_const", const="deletescreening", help="Delete screening data from Elastic. Requires hostname.")
+    parser.add_argument("--purgelogsscreening", dest="purgelogsscreening", action="store_const", const="purgelogsscreening", help="Purge logs and screening data (WARNING, cannot be recovered)")
     parser.add_argument("--deletescreeninglogs", dest="deletescreeninglogs", action="store_const", const="deletescreeninglogs", help="Delete log files from Elastic data. Requires FQDN (from winlog.computer_name).")
     parser.add_argument("--report", dest="report", action="store_const", const="report", help="Create a report")
     parser.add_argument("--createes", dest="createes", action="store_const", const="createes", help="Create Elastic index for security screening")
@@ -540,6 +599,10 @@ if __name__ == '__main__':
         logger.info("Start deletescreening")
         deletescreening(config, args.ZIP_or_hostname_or_FQDN)
         logger.info("End deletescreening")
+    elif args.purgelogsscreening == "purgelogsscreening":
+        logger.info("Purge logs and screening data")
+        purgelogsscreening(config)
+        logger.info("End purge")
     elif args.deletescreeninglogs == "deletescreeninglogs":
         logger.info("Start deletescreeninglogs")
         deletescreeninglogs(config, args.ZIP_or_hostname_or_FQDN)

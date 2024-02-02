@@ -15,3 +15,10 @@ six==1.16.0
 termcolor==1.1.0
 urllib3==1.26.14
 zipp==1.0.0
+
+requests
+prettytable
+pandas
+jinja2
+WeasyPrint==52.5
+matplotlib
