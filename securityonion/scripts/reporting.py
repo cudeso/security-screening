@@ -15,6 +15,12 @@ from report_queries import report_queries
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
+
 # https://files.pythonhosted.org/packages/9c/3d/a121f284241f08268b21359bd425f7d4825cffc5ac5cd0e1b3d82ffd2b10/pytz-2024.1-py2.py3-none-any.whl
 # https://rpmfind.net/linux/centos/7.9.2009/os/x86_64/Packages/libjpeg-turbo-devel-1.2.90-8.el7.x86_64.rpm
 #  python -m pip install WeasyPrint==52.5
@@ -163,6 +169,34 @@ def monitoring_generic_table_details(elasticsearch, query, size, source_field, c
     df.style.set_properties(**{'text-align': 'left'})
     return df
 
+
+def send_email(sender_email, sender_password, receiver_email, subject, body, file_path, reporting_smtp_server, reporting_smtp_port):
+    message = MIMEMultipart()
+    message["From"] = sender_email
+    message["To"] = receiver_email
+    message["Subject"] = subject
+    message.attach(MIMEText(body, "plain"))
+
+    # Open PDF file in binary mode
+    with open(file_path, "rb") as attachment:
+        part = MIMEBase("application", "octet-stream")
+        part.set_payload(attachment.read())
+    encoders.encode_base64(part)
+
+    part.add_header(
+        "Content-Disposition",
+        f"attachment; filename= {file_path}",
+    )
+
+    message.attach(part)
+    text = message.as_string()
+
+    with smtplib.SMTP(reporting_smtp_server, reporting_smtp_port) as server:
+        #server.starttls()
+        #server.login(sender_email, sender_password)
+        server.sendmail(sender_email, receiver_email, text)
+
+
 if __name__ == '__main__':
     logger = logging.getLogger("security-screening")
     logger.setLevel(logging.DEBUG)
@@ -237,3 +271,10 @@ if __name__ == '__main__':
         @page {size: A4; margin: 1cm;}
         ''')
     HTML("reporting-report-{}.html".format(current_date)).write_pdf("reporting-report-{}.pdf".format(current_date), stylesheets=[css])
+
+    subject = "Security Onion reporting - {}".format(current_date)
+    body = "Please find attached the PDF file."
+    file_path = "reporting-report-{}.pdf".format(current_date)
+    send_email(config["reporting_sender"], "", config["reporting_receiver"], subject, body, file_path, config["reporting_smtp_server"], config["reporting_smtp_port"])
+    os.remove(file_path)
+    os.remove("reporting-report-{}.html".format(current_date))

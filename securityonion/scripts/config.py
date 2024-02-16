@@ -106,4 +106,8 @@ config = {
 	"always_delete_outputfiles": True,
     "processevtx_logfolder": False, #"logs_copy",
     "deletematchinglogs": False,
+    "reporting_sender": "",
+    "reporting_receiver": "",
+    "reporting_smtp_server": "",
+    "reporting_smtp_port": ""
 }
