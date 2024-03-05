@@ -44,3 +44,59 @@ Usage:
 +---------------+------+----+-------------------+--------------------+------+-----------+
 ```
 
+# Hardware inventory retrieved via an SSH login to a switch
+
+Build the hardware inventory table based on the output of command executed via SSH.
+
+Use `switch-hardware-inventory-ssh.py` to
+
+1. Login to each hosts defined in the variable `hosts`
+2. Execute the command (`command`). Either use the credentials stored in `hosts` or ask the user to type in the credentials
+3. Parse the output of the command
+4. Save the output to `hardware-inventory-ssh.txt`
+5. Compare the output with the previous execution and highlight the differences.
+
+Update the variable `hosts` with your host details. Add an entry with
+- IP address
+  - A dictionary with `details`. If you leave `username`, `password`, or `command` empty then the script will ask you for the input
+    - Processtype can be `arp` (Cisco ARP), `cam` (Cisco CAM) or `linuxarp` (Linux - Ubuntu ARP)
+  - A variable `output`
+```
+"192.168.171.176": {"details": {"username": default_username, "password": default_password, "command": default_command, "process_type": "linuxarp"},
+                    "output": False}
+```
+
+The script will connect via SSH to each IP and execute the command. The output of the command is then parsed and saved in a table in `hardware-inventory-ssh.txt`. It then compares the output with the previous execution. This immediately gives a diff compared to a previous run.
+
+Example output of `hardware-inventory-ssh.txt`
+```
++-----------------+------+---------------+-------------------+---------------------------------+-----+-----------+
+| System          | VLAN | IP            | MAC               | MAC vendor                      | Age | Interface |
++-----------------+------+---------------+-------------------+---------------------------------+-----+-----------+
+| 192.168.171.176 |      | 192.168.171.1 | 3e:22:fb:72:8c:69 | Unknown                         |     |   ens33   |
+| 192.168.171.176 |      | 192.168.171.2 | 00:50:56:e6:0a:63 | VMware, Inc.                    |     |   ens33   |
+| 192.168.171.174 |  1   |               | 001b.5400.33c0    | Cisco Systems, Inc              |     |  Gi1/0/1  |
+| 192.168.171.174 |  1   |               | 0024.2bb6.fd30    | Hon Hai Precision Ind. Co.,Ltd. |     |  Gi1/0/2  |
++-----------------+------+---------------+-------------------+---------------------------------+-----+-----------+
+```
+
+Obtaining the ARP table on a Cisco switch: `show arp` returns this output
+
+```
+Protocol  Address          Age (min)  Hardware Addr   Type   Interface
+Internet  192.168.1.10     -          001b.5400.33c0  ARPA   Vlan1
+Internet  192.168.1.4      2          0024.2bb6.fd30  ARPA   Vlan1
+```
+
+Obtaining the CAM table on a Cisco switch: `show mac address-table dynamic` returns this output
+
+```
+Mac Address Table
+-------------------------------------------
+Vlan    Mac Address       Type        Ports
+----    -----------       --------    -----
+  1    001b.5400.33c0     DYNAMIC     Gi1/0/1
+  1    0024.2bb6.fd30     DYNAMIC     Gi1/0/2
+```
+
+Use of pub/private key authentication is foreseen in a next version.
