@@ -1,6 +1,6 @@
 @ECHO OFF
 
-:: Audit script v11
+:: Audit script v12
 ::  v1 : Start
 ::  v2 : Fixed fetching all users ; include localgroups
 ::           Removed bugs with jumping to wrong subs from v1
@@ -27,25 +27,39 @@
 ::       create_zip: option to configure to create a ZIP file 
 ::       run_ad_query_logs
 ::       run_sysinternals
+::  v12: Use the registry as a 'backup' for the domain name
+::       Use the FQDN as folder to store the output (use_fqdn_instead_of_computername)
 
 set debug=1
 set create_zip=1
 set run_ad_query_logs=1
 set run_sysinternals=1
 set git_safe=0
+set use_fqdn_instead_of_computername=1
 
 :: Step 1
 :: Get the computer name
 :: Needed to create the output directory
 if %debug%==1 echo "Fetching system name"
-FOR /f "tokens=2,* delims= " %%a in ('IPCONFIG ^/ALL ^| FINDSTR "Primary Dns"') do set tempsuffix=%%b
-FOR /f "tokens=1,2 delims=:" %%a in ('echo %tempsuffix%') do set dnssuffix=%%b
-SET FQDN=%COMPUTERNAME%.%DNSSUFFIX:~1%
+for /f "tokens=2,* delims= " %%a in ('IPCONFIG ^/ALL ^| FINDSTR "Primary Dns"') do set tempsuffix=%%b
+for /f "tokens=1,2 delims=:" %%a in ('echo %tempsuffix%') do set dnssuffix=%%b
+set FQDN=%COMPUTERNAME%.%DNSSUFFIX:~1%
 
-ECHO Server FQDN: %FQDN%
+:: Get the domain name via the registry
+for /f "tokens=2*" %%A in ('reg query "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" /v Domain ^| find "Domain"') do (
+    set "domain_name=%%B"
+)
+if defined domain_name (
+    set FQDN=%COMPUTERNAME%.%domain_name%
+)
+
+echo Server FQDN: %FQDN%
 ::set aud_dir=audit_%COMPUTERNAME%
 set script_dir=%~dp0
 set aud_dir=%script_dir%audit_%COMPUTERNAME%
+if %use_fqdn_instead_of_computername%==1 (
+    set aud_dir=%script_dir%audit_%FQDN%
+)
 mkdir "%aud_dir%"
 cd "%aud_dir%"
 
@@ -90,6 +104,7 @@ if %git_safe%==0 (
     )) > systeminfo.csv
     del systeminfo-full.csv
 )
+
 
 :: Step 3
 :: Grap info from systeminfo for inventory template
@@ -166,7 +181,6 @@ echo > net_localgroup_detail.txt
 
 for /F "tokens=* eol=- skip=2" %%a in (net_localgroup.txt) do call :processlocalgroup %%a
 
-
 if %debug%==1 echo "users"
 echo > users_detail.txt
 
@@ -218,6 +232,7 @@ if %git_safe%==0 (
     nbtstat -s > nbtstat_s.txt
 )
 
+
 :: Step 6
 :: Running procecess
 if %git_safe%==0 (
@@ -229,6 +244,7 @@ if %git_safe%==0 (
     tasklist /SVC /FO CSV > tasklist_svc.csv
     tasklist /M /FO CSV > tasklist_loaded_modules.csv
 )
+
 
 :: Step 7
 :: Installed software
@@ -255,7 +271,6 @@ wmic  /output:software_list_wmic.csv  product get * /format:csv
 dir /a "C:\Program Files" > software_list_programfiles.txt
 dir /a "C:\Program Files (x86)" > software_list_programfiles_x86.txt
 
-
 wmic /output:software_list_hotfixes.csv qfe list /format:csv
 
 
@@ -265,7 +280,6 @@ wmic /output:software_list_hotfixes.csv qfe list /format:csv
 ::gpresult /r > gpresult.txt
 ::gpresult /x gpresult.xml
 ::gpresult /h gpresult.html
-
 
 
 :: Step 9
@@ -311,6 +325,7 @@ copy %SYSTEMROOT%\inf\setupapi.app.log .
 copy %SYSTEMROOT%\inf\setupapi.dev.log .
 :: dos2unix reg_enum_usb.txt ; | grep HKEY | grep -E '^[^\\]*(\\[^\\]*){5}$'
 
+
 :: Step 11
 :: Driver Information
 if %debug%==1 echo "drivers"
@@ -329,6 +344,7 @@ schtasks /query /FO CSV /V >schtasks.csv
 if %debug%==1 echo "startup items"
 ::wmic /output:wmic_startup.csv startup list full /format:"%WINDIR%\System32\wbem\en-us\csv"
 wmic /output:wmic_startup.csv startup get Caption, Command, Description, Location, Name, User /format:csv:"datatype=text":"sortby=Name"
+
 
 :: Step 14
 :: Get whoami information
@@ -365,7 +381,6 @@ if %git_safe%==0 (
     wmic /output:process_list_wmic_safe.csv process where "not (Name like 'svchost.exe' or CommandLine like 'svchost.exe')"  get Description, CommandLine, ExecutablePath, Name, CSName /format:csv:"datatype=text":"sortby=Name"
 )
 
-
 :: Service list
 if %debug%==1 echo "service list wmic"
 if %git_safe%==0 (
@@ -379,6 +394,7 @@ if %git_safe%==0 (
     if %debug%==1 echo "logon list wmic"
     wmic /output:logon_wmic.csv logon list full /format:csv
 )
+
 
 :: Step 19 
 :: Browser data
@@ -427,7 +443,7 @@ pause
 
 exit /b
 
-
+:: -------------------------------------------------------------------------------------------
 :: SUBROUTINES
 
 :processlocalgroup 
