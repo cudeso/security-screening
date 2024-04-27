@@ -1,6 +1,6 @@
 @ECHO OFF
 
-:: Audit script v12
+:: Audit script v13
 ::  v1 : Start
 ::  v2 : Fixed fetching all users ; include localgroups
 ::           Removed bugs with jumping to wrong subs from v1
@@ -29,6 +29,7 @@
 ::       run_sysinternals
 ::  v12: Use the registry as a 'backup' for the domain name
 ::       Use the FQDN as folder to store the output (use_fqdn_instead_of_computername)
+::  v13: (ThomasD) Add check for domain_name when setting aud_dir and when use_fqdn_instead_of_computername==1
 
 set debug=1
 set create_zip=1
@@ -58,7 +59,9 @@ echo Server FQDN: %FQDN%
 set script_dir=%~dp0
 set aud_dir=%script_dir%audit_%COMPUTERNAME%
 if %use_fqdn_instead_of_computername%==1 (
-    set aud_dir=%script_dir%audit_%FQDN%
+    if defined domain_name (
+        set aud_dir=%script_dir%audit_%FQDN%
+    )
 )
 mkdir "%aud_dir%"
 cd "%aud_dir%"
