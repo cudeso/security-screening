@@ -105,6 +105,7 @@ config = {
     "import_state_file": "/nsm/security-screening/securityonion/scripts/import_state.float",
 	"always_delete_outputfiles": True,
     "processevtx_logfolder": False, #"logs_copy",
+    "dnq": False,    
     "deletematchinglogs": False,
     "reporting_sender": "",
     "reporting_receiver": "",

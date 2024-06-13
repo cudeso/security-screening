@@ -31,14 +31,14 @@ import Evtx.Views as e_views
 def extract_zip(zipfile):
     if zipfile.lower()[len(zipfile)-4:] == ".zip":
         screening_zip = os.path.basename(zipfile)
-        # full_path_to_zip = "{}/{}".format(config["input_path"], screening_zip)
-        full_path_to_zip = zipfile
+        full_path_to_zip = "{}/{}".format(config["input_path"], screening_zip)
+        #full_path_to_zip = zipfile
         full_output_path = "{}".format(config["output_path"])
 
         try:
             if os.path.exists("{}/{}".format(full_output_path, screening_zip[:len(screening_zip)-4])):
-                logger.warning("Output path {} /{} already exists and will be overwritten".format(full_output_path, screening_zip[:len(screening_zip)-4]))
-                print(colored("Output path {} /{} already exists and will be overwritten".format(full_output_path, screening_zip[:len(screening_zip)-4]), "red"))
+                logger.warning("Output path {}/{} already exists and will be overwritten".format(full_output_path, screening_zip[:len(screening_zip)-4]))
+                print(colored("Output path {}/{} already exists and will be overwritten".format(full_output_path, screening_zip[:len(screening_zip)-4]), "red"))
             with ZipFile(full_path_to_zip, 'r') as zObject:
                 zObject.extractall(path=full_output_path)
                 logger.info("Extracted {} to {}".format(screening_zip, full_output_path))
@@ -444,8 +444,7 @@ def listscreeninglogs(config):
 def report(config, zipfile):
 
     logger.info("Process ZIP")
-    dnq=True
-    if dnq:
+    if config["dnq"]:
         # iconv -c -f CP1252 -t UTF-8 net_user.txt.orig > net_user.txt
         # cp systeminfo.csv systeminfo.csv.orig ; iconv -c -f CP1252 -t UTF-8 systeminfo.csv.orig > systeminfo.csv ; cp netstat.txt netstat.txt.orig ; iconv -c -f CP1252 -t UTF-8 netstat.txt.orig > netstat.txt ; cp tasklist.csv tasklist.csv.orig ;  iconv -c -f CP1252 -t UTF-8 tasklist.csv.orig > tasklist.csv ; cp users_detail.txt users_detail.txt.org ;  iconv -c -f CP1252 -t UTF-8 users_detail.txt.org > users_detail.txt
         full_output_path = zipfile
@@ -460,13 +459,13 @@ def report(config, zipfile):
         print(colored("Audit files: system info for {}".format(full_output_path)))
         audit_hostname = screening_system_name(config, False, full_output_path)
         logger.info("Audit files: software list for {}".format(audit_hostname))
-        software_list(config, False, full_output_path, audit_hostname, dnq)
+        software_list(config, False, full_output_path, audit_hostname, config["dnq"])
         logger.info("Audit files: listening services for {}".format(audit_hostname))
-        listening_services(config, False, full_output_path, audit_hostname, dnq)
+        listening_services(config, False, full_output_path, audit_hostname, config["dnq"])
         logger.info("Audit files: user accounts for {}".format(audit_hostname))
         user_accounts(config, False, full_output_path, audit_hostname, False)
         logger.info("Audit files: AV for {}".format(audit_hostname))
-        anti_virus(config, False, full_output_path, audit_hostname, dnq)
+        anti_virus(config, False, full_output_path, audit_hostname, config["dnq"])
 
 def deletematchinglogs(config, evtx_file_path):
     first_timestamp = False

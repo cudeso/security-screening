@@ -407,6 +407,10 @@ Monitor a directory for new files
   - Actions:
     - Delete logs matching system names in evtx file
   - Can result in `elastic_transport.ConnectionTimeout: Connection timed out` when there's a lot of data, just try a second time
+- `purgelogsscreening`
+  - Input: *random string*
+  - Actions:
+    - Purge logs and screening data. Purging is limit to `elasticsearch_max_results`. You might have to run it a few times to delete all data.
 
 # Demo Elastic queries
 

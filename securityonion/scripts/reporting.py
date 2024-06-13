@@ -99,7 +99,7 @@ def report_generic_table_details(elasticsearch, query, field1, field2, column1, 
 
 def monitoring_generic(elasticsearch, query, current_date, custom_size, field1, field1_col, field2, field2_col, event_data_field1, event_data_field1_col, event_data_field2, event_data_field2_col, user_data_field1, user_data_field1_col, event_data_field3=False, event_data_field3_col=False):
     query_replace = json.loads(json.dumps(report_queries[query]["query"]).replace("LTE_KEY_VALUE", "{}T23:59:59".format(current_date)))
-    result = elasticsearch.search(index="so-beats-*", query=query_replace, size=custom_size)
+    result = elasticsearch.search(index="so-beats-*", query=query_replace, size=custom_size, sort=report_queries[query]["sort"])
     entries = []
     if "hits" in result and "total" in result["hits"]:
         for entry in result["hits"]["hits"]:
