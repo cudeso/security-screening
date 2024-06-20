@@ -48,6 +48,7 @@ function Process-File {
     $lastModifiedDate = $file.LastWriteTime
 
     # Add the file to the ZIP archive
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
     $zipArchive = [System.IO.Compression.ZipFile]::Open($zipFile, 'Update')
     $entry = $zipArchive.CreateEntry($name)
     $fileStream = $entry.Open()
