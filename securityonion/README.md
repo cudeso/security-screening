@@ -13,15 +13,15 @@
   - [Setup directory](#setup-directory)
   - [Transfer security-screening files to airgapped Security Onion](#transfer-security-screening-files-to-airgapped-security-onion)
   - [Directories](#directories)
+  - [Install SMB client (optional)](#install-smb-client-optional)
   - [Python virtual environment](#python-virtual-environment)
   - [Create an Elastic API key](#create-an-elastic-api-key)
   - [Configuration file](#configuration-file)
   - [Elastic web interface](#elastic-web-interface)
   - [Enable the Python virtual environment](#enable-the-python-virtual-environment)
   - [Import the Kibana saved objects](#import-the-kibana-saved-objects)
-  - [Install SMB client (optional)](#install-smb-client-optional)
   - [Chainsaw (optional)](#chainsaw-optional)
-- [Execute processing of security screening files](#execute-processing-of-security-screening-files)
+- [Processing of security screening files](#processing-of-security-screening-files)
   - [Process](#process)
   - [Monitor](#monitor)
   - [List and delete results](#list-and-delete-results)
@@ -51,8 +51,8 @@ Setup a new VM with these specifications
 
 - Guest OS family and version: Linux, **CentOS 7** (64-bit)
 - 4 virtual cores
-- Memory: Minimum **24GB** RAM
-- Disk: Minimum **250GB** disk space
+- Memory: Minimum **32GB** RAM
+- Disk: Minimum **500GB** disk space
 - Two network interfaces
 - Point the CD-ROM to the ISO file
 
@@ -186,7 +186,7 @@ sudo chown analyst /nsm/security-screening
 
 ## Transfer security-screening files to airgapped Security Onion
 
-1. Mount ISO in VM
+1. Mount `security-screening.iso` ISO in VM
 2. Copy tar.gz to new VM
 3. Expand in `security-screening`
 4. If needed, replace the references to the older username in the venv
@@ -203,6 +203,21 @@ Create a directory `input` and `output` in security-screening/securityonion
 ```
 mkdir /home/analyst/security-screening/securityonion/input
 mkdir /home/analyst/security-screening/securityonion/output
+```
+
+## Install SMB client (optional)
+
+Install the SMB client to import screening data from a remote storage.
+
+```
+sudo rpm -i /home/analyst/security-screening/securityonion/ics/cifs/keyutils-1.5.8-3.el7.x86_64.rpm
+sudo rpm -i /home/analyst/security-screening/securityonion/ics/cifs/cifs-utils-6.2-10.el7.x86_64.rpm
+```
+
+Create the future mount point
+
+```
+mkdir /nsm/security-screening/securityonion/smb/
 ```
 
 ## Python virtual environment 
@@ -285,20 +300,6 @@ Do the same for `screening_log_details_kibana_export.ndjson`.
 
 Verify that the screening dashboard has been imported by going to Home, Analytics and choose **Dashboard**. Search for the security screenings dashbaoard.
 
-## Install SMB client (optional)
-
-Install the SMB client to import screening data from a remote storage.
-
-```
-sudo rpm -i /home/analyst/security-screening/securityonion/ics/cifs/keyutils-1.5.8-3.el7.x86_64.rpm
-sudo rpm -i /home/analyst/security-screening/securityonion/ics/cifs/cifs-utils-6.2-10.el7.x86_64.rpm
-```
-
-Create the future mount point
-
-```
-mkdir /nsm/security-screening/securityonion/smb/
-```
 
 ## Chainsaw (optional)
 
@@ -312,7 +313,7 @@ Afterwards make sure that the Chainsaw binary is executable.
 chmod +x security-screening/securityonion/chainsaw/chainsaw_x86_64-unknown-linux-mus
 ```
 
-# Execute processing of security screening files
+# Processing of security screening files
 
 ## Process
 
