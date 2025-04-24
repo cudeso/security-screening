@@ -71,7 +71,7 @@ Remove-Item $outputFile -ErrorAction SilentlyContinue
 "FullPath,Name,Extension,Size (bytes),CreationDate,LastModifiedDate" | Out-File -FilePath $outputFile -Encoding utf8
 
 # Define directory path and common extensions
-$directories = @("c:\Users\joe\Desktop\security-screening\")
+$directories = @("c:\Users\", "c:\Windows\Temp\")
 $fileextensions = @(".bat", ".ps1", ".vbs", ".js", ".cmd", ".pl", ".sh", ".py")
 
 Write-Host "Adding all users documents and desktop directory to the list"
