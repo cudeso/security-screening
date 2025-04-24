@@ -4,6 +4,8 @@ The scripts are not signed. Temporarily set a more relaxed ExecutionPolicy.
 
 # hunt-archive-files.ps1
 
+Collect archive files that are found in a specific list of directories.
+
 ## Setup
 
 - Update the **username** to an existing username 
@@ -36,6 +38,8 @@ The scripts are not signed. Temporarily set a more relaxed ExecutionPolicy.
 - A ZIP file with the scripts content `c:\Users\$user\Desktop\hunt\hunt-archive-files.zip`
 
 # hunt-get-file-details.ps1
+
+Get file details such as hashes, headers and signatures of files in a specific list of directories.
 
 ## Setup
 
@@ -75,6 +79,8 @@ The scripts are not signed. Temporarily set a more relaxed ExecutionPolicy.
 
 # hunt-get-lnk-files.ps1
 
+Get all LNK files and their targets, focus on a specific list of directories.
+
 ## Setup
 
 - Update the **username** to an existing username 
@@ -105,6 +111,8 @@ The scripts are not signed. Temporarily set a more relaxed ExecutionPolicy.
   - `FullPath,Name,Extension,Size (bytes),CreationDate,LastModifiedDate,LNKTarget`
 
 # hunt-get-additional-details.ps1
+
+Get detailed screening data on autoruns, processes, network connections, scheduled tasks, etc.
 
 ## Setup
 
