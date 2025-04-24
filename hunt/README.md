@@ -4,7 +4,7 @@ The scripts are not signed. Temporarily set a more relaxed ExecutionPolicy.
 
 # hunt-archive-files.ps1
 
-Collect archive files that are found in a specific list of directories.
+Collect script files that are found in a specific list of directories.
 
 ## Setup
 
