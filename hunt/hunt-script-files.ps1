@@ -62,7 +62,13 @@ function Process-File {
 
 }
 
-$user = "joe"
+$user = "public"
+
+# Ensure the hunt directory exists
+$huntDir = "C:\Users\$user\Desktop\hunt"
+if (-not (Test-Path -Path $huntDir)) {
+    New-Item -ItemType Directory -Path $huntDir | Out-Null
+}
 
 $zipFile = "c:\Users\$user\Desktop\hunt\hunt-archive-files.zip"
 $outputFile = "c:\Users\$user\Desktop\hunt\hunt-archive-files.csv"
@@ -95,3 +101,5 @@ foreach ($directory in $directories) {
     Process-FilesRecursively -directory $directory -fileextensions $fileextensions -zipFile $zipFile
 }
  
+Write-Host "Archive created at $zipFile"
+Write-Host "CSV file created at $outputFile"

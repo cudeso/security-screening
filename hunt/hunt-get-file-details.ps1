@@ -124,7 +124,13 @@ function Process-File {
     }
 }
 
-$user = "joe"
+$user = "public"
+
+# Ensure the hunt directory exists
+$huntDir = "C:\Users\$user\Desktop\hunt"
+if (-not (Test-Path -Path $huntDir)) {
+    New-Item -ItemType Directory -Path $huntDir | Out-Null
+}
 
 $outputFile = "c:\Users\$user\Desktop\hunt\hunt-filedetails.csv"
 Remove-Item $outputFile
@@ -158,3 +164,4 @@ foreach ($directory in $directories) {
 } 
 
 Write-Host "Finished"
+Write-Host "CSV file created at $outputFile"

@@ -1,6 +1,7 @@
 @ECHO OFF
 
-:: Audit script v13
+:: Audit script v14
+::
 ::  v1 : Start
 ::  v2 : Fixed fetching all users ; include localgroups
 ::           Removed bugs with jumping to wrong subs from v1
@@ -30,6 +31,8 @@
 ::  v12: Use the registry as a 'backup' for the domain name
 ::       Use the FQDN as folder to store the output (use_fqdn_instead_of_computername)
 ::  v13: (ThomasD) Add check for domain_name when setting aud_dir and when use_fqdn_instead_of_computername==1
+::  v14: Add '.exe' to avoid name confusions
+::       Add defender data
 
 set debug=1
 set create_zip=1
@@ -47,7 +50,7 @@ for /f "tokens=1,2 delims=:" %%a in ('echo %tempsuffix%') do set dnssuffix=%%b
 set FQDN=%COMPUTERNAME%.%DNSSUFFIX:~1%
 
 :: Get the domain name via the registry
-for /f "tokens=2*" %%A in ('reg query "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" /v Domain ^| find "Domain"') do (
+for /f "tokens=2*" %%A in ('reg query "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" /v Domain ^| find.exe "Domain"') do (
     set "domain_name=%%B"
 )
 if defined domain_name (
@@ -75,7 +78,7 @@ time /T >> date_of_execution.txt
 )
 
 if %debug%==1 echo "ver"
-ver > ver.txt
+ver.exe > ver.txt
 
 if %debug%==1 echo "systeminfo"
 if %git_safe%==0 (
@@ -197,42 +200,42 @@ wmic /output:users_detail_wmic.csv 		UserAccount where "LocalAccount=True" get A
 
 if %git_safe%==0 (
     if %debug%==1 echo "ipconfig dns"
-    ipconfig /displaydns > ipconfig_dnscache.txt
+    ipconfig.exe /displaydns > ipconfig_dnscache.txt
 )
 
 if %debug%==1 echo "ipconfig"
-ipconfig /all > ipconfig_all.txt
+ipconfig.exe /all > ipconfig_all.txt
 if %debug%==1 echo "route"
-route print > route_print.txt
+route.exe print > route_print.txt
 if %debug%==1 echo "fw"
-netsh firewall show state >> fw_config.txt
-netsh firewall show config >> fw_config.txt
-netsh advfirewall firewall show rule name=all > fwadv_config.txt
-netsh dump > fw_dump.txt
+netsh.exe firewall show state >> fw_config.txt
+netsh.exe firewall show config >> fw_config.txt
+netsh.exe advfirewall firewall show rule name=all > fwadv_config.txt
+netsh.exe dump > fw_dump.txt
 
 if %debug%==1 echo "rpc"
-netsh rpc show >> rpc_config.txt
+netsh.exe rpc show >> rpc_config.txt
 
 if %debug%==1 echo "netstat"
 if %git_safe%==0 (
-    netstat -nao > netstat.txt
-    netstat -naob > netstat_naob.txt
+    netstat.exe -nao > netstat.txt
+    netstat.exe -naob > netstat_naob.txt
 
     if %debug%==1 echo "netstat stats"
-    netstat -s > netstat_stats.txt
+    netstat.exe -s > netstat_stats.txt
 ) else (
-    netstat -na | findstr "LISTENING" > netstat.txt
+    netstat.exe -na | findstr "LISTENING" > netstat.txt
 )
 
 if %debug%==1 echo "arp"
-arp -a > arp.txt
-arp -a -v > arp_verbose.txt
+arp.exe -a > arp.txt
+arp.exe -a -v > arp_verbose.txt
 
 if %git_safe%==0 (
     if %debug%==1 echo "nbtstat"
-    nbtstat -n > nbtstat_n.txt
-    nbtstat -c > nbtstat_c.txt
-    nbtstat -s > nbtstat_s.txt
+    nbtstat.exe -n > nbtstat_n.txt
+    nbtstat.exe -c > nbtstat_c.txt
+    nbtstat.exe -s > nbtstat_s.txt
 )
 
 
@@ -257,7 +260,7 @@ if %debug%==1 echo "installed"
 
 echo ================= >>software_list.txt
 reg export HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall temp1.txt
-find "DisplayName" temp1.txt| find /V "ParentDisplayName" > temp2.txt
+find.exe "DisplayName" temp1.txt| find.exe /V "ParentDisplayName" > temp2.txt
 for /f "tokens=2,3 delims==" %%a in (temp2.txt) do (echo %%a >> software_list.txt)
 del temp1.txt
 del temp2.txt
@@ -274,7 +277,7 @@ wmic  /output:software_list_wmic.csv  product get * /format:csv
 dir /a "C:\Program Files" > software_list_programfiles.txt
 dir /a "C:\Program Files (x86)" > software_list_programfiles_x86.txt
 
-wmic /output:software_list_hotfixes.csv qfe list /format:csv
+wmic /output:software_list_hotfixes.csv qfe list full /format:csv
 
 
 :: Step 8
@@ -283,41 +286,50 @@ wmic /output:software_list_hotfixes.csv qfe list /format:csv
 ::gpresult /r > gpresult.txt
 ::gpresult /x gpresult.xml
 ::gpresult /h gpresult.html
+auditpol /get /category:* > auditpol_categories.txt
+
+secedit /export /cfg secedit_config.txt
 
 
 :: Step 9
 :: Log configuration setup
+:: Limit use of webtutil; we do an xcopy of all the logs
 if %debug%==1 echo "log files"
-wevtutil gl Application > log_config_application.txt
-wevtutil gl Security > log_config_security.txt
-wevtutil gl Setup > log_config_setup.txt
-wevtutil gl System > log_config_system.txt
+:: "gl"= get log
+::wevtutil gl Application > log_config_application.txt
+::wevtutil gl Security > log_config_security.txt
+::wevtutil gl Setup > log_config_setup.txt
+::wevtutil gl System > log_config_system.txt
+
+:: "gli" = get log information
 wevtutil gli Application >> log_status_application.txt
 wevtutil gli Security >> log_status_security.txt    
 wevtutil gli Setup >> log_status_setup.txt
 wevtutil gli System >> log_status_system.txt
 
-wevtutil qe Application > log_export_application.txt
-wevtutil qe Security > log_export_security.txt
-wevtutil qe System > log_export_system.txt
-wevtutil qe "Windows PowerShell" > log_export_powershell.txt
+:: "qe" = query events
+::wevtutil qe Application > log_export_application.txt
+::wevtutil qe Security > log_export_security.txt
+::wevtutil qe System > log_export_system.txt
+::wevtutil qe "Windows PowerShell" > log_export_powershell.txt
 
-wevtutil epl Application application.evtx
-wevtutil epl System system.evtx
-wevtutil epl Security security.evtx
-wevtutil epl Microsoft-Windows-RemoteDesktopServices-RdpCoreTS/Operational rdpcore.evtx
-wevtutil epl "Windows PowerShell" powershell.evtx
+:: "epl" = export log
+::wevtutil epl Application application.evtx
+::wevtutil epl System system.evtx
+::wevtutil epl Security security.evtx
+::wevtutil epl Microsoft-Windows-RemoteDesktopServices-RdpCoreTS/Operational rdpcore.evtx
+::wevtutil epl "Windows PowerShell" powershell.evtx
 
-wevtutil epl "Microsoft-Windows-Windows Firewall With Advanced Security/ConnectionSecurity" firewall_ConnectionSecurity.evtx
-wevtutil epl "Microsoft-Windows-Windows Firewall With Advanced Security/ConnectionSecurityVerbose" firewall_ConnectionSecurityVerbose.evtx
-wevtutil epl "Microsoft-Windows-Windows Firewall With Advanced Security/Firewall" firewall_Firewall.evtx
-wevtutil epl "Microsoft-Windows-Windows Firewall With Advanced Security/FirewallVerbose" firewall_FirewallVerbose.evtx
+::wevtutil epl "Microsoft-Windows-Windows Firewall With Advanced Security/ConnectionSecurity" firewall_ConnectionSecurity.evtx
+::wevtutil epl "Microsoft-Windows-Windows Firewall With Advanced Security/ConnectionSecurityVerbose" firewall_ConnectionSecurityVerbose.evtx
+::wevtutil epl "Microsoft-Windows-Windows Firewall With Advanced Security/Firewall" firewall_Firewall.evtx
+::wevtutil epl "Microsoft-Windows-Windows Firewall With Advanced Security/FirewallVerbose" firewall_FirewallVerbose.evtx
 
-wevtutil epl "Microsoft-Windows-Terminal-Services-RemoteConnectionManager/Operational" rdp_RemoteConnectionManager.evtx
-wevtutil epl "Microsoft-Windows-TerminalServices-LocalSessionManager/Operational" rdp_LocalSessionManager.evtx
+::wevtutil epl "Microsoft-Windows-Terminal-Services-RemoteConnectionManager/Operational" rdp_RemoteConnectionManager.evtx
+::#wevtutil epl "Microsoft-Windows-TerminalServices-LocalSessionManager/Operational" rdp_LocalSessionManager.evtx
 
 echo "Attempt to copy all log files"
-xcopy /E/H/C/I "%SystemRoot%\System32\Winevt\Logs" logs
+xcopy.exe /E/H/C/I "%SystemRoot%\System32\Winevt\Logs" logs
 
 
 :: Step 10
@@ -352,9 +364,9 @@ wmic /output:wmic_startup.csv startup get Caption, Command, Description, Locatio
 :: Step 14
 :: Get whoami information
 if %debug%==1 echo "whoami"
-whoami /user /fo csv > whoami_user.csv
-whoami /groups /fo csv > whoami_groups.csv
-whoami /priv /fo csv > whoami_priv.csv
+whoami.exe /user /fo csv > whoami_user.csv
+whoami.exe /groups /fo csv > whoami_groups.csv
+whoami.exe /priv /fo csv > whoami_priv.csv
 
 
 :: Step 15
@@ -402,10 +414,10 @@ if %git_safe%==0 (
 :: Step 19 
 :: Browser data
 if %debug%==1 echo "browser data"
-xcopy "C:\Documents and Settings\%username%\Application Data\Mozilla\Firefox\Profiles\" browser_firefox_profiles_user /E /H /C /I
-xcopy "C:\Users\%username%\AppData\Roaming\Mozilla\Firefox\Profiles\" browser_firefox_profiles /E /H /C /I
-xcopy "C:\Users\%username%\AppData\Local\Google\Chrome\User Data\" browser_chrome_userdata /E /H /C /I
-xcopy "C:\Documents and Settings\%username%\Local Settings\Application Data\Google\Chrome\User Data\" browser_chrome_userdata_user /E /H /C /I
+xcopy.exe "C:\Documents and Settings\%username%\Application Data\Mozilla\Firefox\Profiles\" browser_firefox_profiles_user /E /H /C /I
+xcopy.exe "C:\Users\%username%\AppData\Roaming\Mozilla\Firefox\Profiles\" browser_firefox_profiles /E /H /C /I
+xcopy.exe "C:\Users\%username%\AppData\Local\Google\Chrome\User Data\" browser_chrome_userdata /E /H /C /I
+xcopy.exe "C:\Documents and Settings\%username%\Local Settings\Application Data\Google\Chrome\User Data\" browser_chrome_userdata_user /E /H /C /I
 
 
 :: Step 20
@@ -428,6 +440,15 @@ if %run_ad_query_logs%==1 (
     "%script_dir%supporttools\csvde.exe" -v -r "(objectClass=domain)" -n -j adquery_logs\ -f adquery_domain.csv
     "%script_dir%supporttools\csvde.exe" -v -r "(objectClass=site)" -n -j adquery_logs\ -f adquery_site.csv
 )
+
+
+:: Step 22
+:: Defender data
+if %debug%==1 echo "defender data"
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Get-MpComputerStatus | Select-Object AMServiceEnabled, AntispywareEnabled, AntivirusEnabled, RealTimeProtectionEnabled, LastFullScanTime | Export-Csv -Path 'defender-MpComputerStatus.csv' -NoTypeInformation"
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Get-MpPreference | Select-Object -ExpandProperty ExclusionPath | ForEach-Object { [PSCustomObject]@{ ExclusionPath = $_ } } | Export-Csv -Path 'defenfder-ExclusionPaths.csv' -NoTypeInformation"
 
 
 :: Step 99

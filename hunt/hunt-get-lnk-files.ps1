@@ -56,7 +56,13 @@ function Process-File {
 
 }
 
-$user = "joe"
+$user = "public"
+
+# Ensure the hunt directory exists
+$huntDir = "C:\Users\$user\Desktop\hunt"
+if (-not (Test-Path -Path $huntDir)) {
+    New-Item -ItemType Directory -Path $huntDir | Out-Null
+}
 
 $outputFile = "c:\Users\$user\Desktop\hunt\hunt-lnk-files.csv"
 Remove-Item $outputFile -ErrorAction SilentlyContinue
@@ -64,7 +70,7 @@ Remove-Item $outputFile -ErrorAction SilentlyContinue
 Write-Host "Writing to $outputFile"
 
 # Define directory path and common extensions
-$directories = @("c:\Users\joe\Desktop\")
+$directories = @("c:\Users\Public\Desktop\")
 $fileextensions = @(".lnk")
 
 Write-Host "Adding all users documents and desktop directory to the list"
@@ -90,3 +96,4 @@ foreach ($directory in $directories) {
 }
  
 Write-Host "Finished"
+Write-Host "CSV file created at $outputFile"

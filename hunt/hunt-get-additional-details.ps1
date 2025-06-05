@@ -6,7 +6,13 @@
 
 #>
 
-$user = "joe"
+$user = "public"
+
+# Ensure the hunt directory exists
+$huntDir = "C:\Users\$user\Desktop\hunt"
+if (-not (Test-Path -Path $huntDir)) {
+    New-Item -ItemType Directory -Path $huntDir | Out-Null
+}
 
 $schtaksOutput = "C:\Users\$user\Desktop\hunt\hunt-SchTasks.csv"
 $processOutput = "C:\Users\$user\Desktop\hunt\hunt-Process.csv"
@@ -52,3 +58,13 @@ $autorunEntries = foreach ($key in $autorunKeys) {
 $autorunEntries | Export-Csv -Path $registryOutput -NoTypeInformation
 
 Write-Host "Finished"
+Write-Host "Outputs saved to:"
+Write-Host "  $schtaksOutput"
+Write-Host "  $processOutput"
+Write-Host "  $eventFilterOutput"
+Write-Host "  $wmiProcessOutput"
+Write-Host "  $servicesOutput"
+Write-Host "  $networkConnectionsOutput"
+Write-Host "  $networkConnectionsOutputOld"
+Write-Host "  $autorunsOutput"
+Write-Host "  $registryOutput"
