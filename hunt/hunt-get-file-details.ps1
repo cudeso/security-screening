@@ -14,10 +14,10 @@ $user = "public"
 $directory_to_store_output = "C:\Users\$user\Documents\security-screening\hunt"
 
 # Target directory and type of extensions to look for
-$target_directories = @("C:\inetpub\wwwroot", "C:\Windows\Temp", "C:\Temp", "C:\Windows\SysWOW64", "C:\Users\Public", "C:\Windows\System32\config\systemprofile\AppData\Local\Microsoft\Windows")
-$target_fileextensions = @(".exe", ".ps1", ".dll", ".com", "vbs", ".js", ".pl", ".sh", ".py", ".cpl", ".cab", ".bat", ".cmd", ".lnk", ".msi", ".pif", ".scr", ".vbe", ".ws", ".wsh", ".rar", ".zip", ".7z", ".gz", ".sqlite", ".db")
+$target_directories = @("C:\inetpub\wwwroot", "C:\Windows\Temp", "C:\Temp", "C:\Windows\SysWOW64", "C:\Users\Public", "C:\Windows\System32\config\systemprofile\AppData\Local\Microsoft\Windows", "d:\")
+$target_fileextensions = @(".exe", ".ps1", ".dll", ".com", "vbs", ".js", ".pl", ".sh", ".py", ".cpl", ".cab", ".bat", ".cmd", ".lnk", ".msi", ".pif", ".scr", ".vbe", ".ws", ".wsh", ".sqlite", ".db")
 
-
+# Can be left to default, except if you extracted the files in a different directory
 $security_screening_folder = "*security-screening*"
 
 # Function to calculate MD5 hash
@@ -146,7 +146,7 @@ if (-not (Test-Path -Path $directory_to_store_output )) {
     New-Item -ItemType Directory -Path $directory_to_store_output  | Out-Null
 }
 
-$outputFile = "$directory_to_store_output\hunt-filedetails.csv"
+$outputFile = "$directory_to_store_output\output-hunt-filedetails.csv"
 Remove-Item $outputFile
 "FullPath,Name,Extension,Size (bytes),CreationDate,LastModifiedDate,MD5,SHA256,OriginalFilename,ProductVersion,FileVersion,CompileTimestamp,FileDescription,CompanyName,FileLanguage,SignatureSubject,SignatureTimestamp,SignatureSigningAlgo,SignatureIssuer,SignatureSerial" | Out-File -FilePath $outputFile -Encoding utf8
 Write-Host "Writing to $outputFile"
