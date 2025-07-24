@@ -17,9 +17,8 @@ $directory_to_store_output = "C:\Users\$user\Documents\security-screening\hunt"
 $target_directories = @("c:\Users\", "d:\")
 $target_fileextensions = @(".lnk")
 
-
+# Can be left to default, except if you extracted the files in a different directory
 $security_screening_folder = "*security-screening*"
-
 
 # Function to process files in a directory recursively
 function Process-FilesRecursively {
@@ -72,13 +71,12 @@ function Process-File {
     }
 }
 
-
 # Ensure the hunt directory exists
 if (-not (Test-Path -Path $directory_to_store_output)) {
     New-Item -ItemType Directory -Path $directory_to_store_output | Out-Null
 }
 
-$outputFile = "$directory_to_store_output\hunt-lnk-files.csv"
+$outputFile = "$directory_to_store_output\output-hunt-lnk-files.csv"
 Remove-Item $outputFile -ErrorAction SilentlyContinue
 "FullPath,Name,Extension,Size (bytes),CreationDate,LastModifiedDate,LNKTarget" | Out-File -FilePath $outputFile -Encoding utf8
 Write-Host "Writing to $outputFile"
