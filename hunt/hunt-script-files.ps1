@@ -7,7 +7,6 @@
     Collect installed scripts on a system (full content of the scripts). Store script files in a ZIP. CSV file with path, script filename, date, size
 #>
 
-
 # Change to your user
 $user = "public"
 # Change to where the hunt files are extracted
@@ -17,10 +16,8 @@ $directory_to_store_output = "C:\Users\$user\Documents\security-screening\hunt"
 $target_directories = @("c:\Users\", "c:\Windows\Temp\", "d:\")
 $target_fileextensions = @(".bat", ".ps1", ".vbs", ".js", ".cmd", ".pl", ".sh", ".py")
 
-
-
+# Can be left to default, except if you extracted the files in a different directory
 $security_screening_folder = "*security-screening*"
-
 
 # Function to process files in a directory recursively
 function Process-FilesRecursively {
@@ -79,20 +76,16 @@ function Process-File {
     }
 }
 
-
-
-
 # Ensure the hunt directory exists
 if (-not (Test-Path -Path $directory_to_store_output)) {
     New-Item -ItemType Directory -Path $directory_to_store_output | Out-Null
 }
 
-$zipFile = "$directory_to_store_output\hunt-archive-files.zip"
-$outputFile = "$directory_to_store_output\hunt-archive-files.csv"
+$zipFile = "$directory_to_store_output\output-hunt-archive-files.zip"
+$outputFile = "$directory_to_store_output\output-hunt-archive-files.csv"
 Remove-Item $zipFile -ErrorAction SilentlyContinue
 Remove-Item $outputFile -ErrorAction SilentlyContinue
 "FullPath,Name,Extension,Size (bytes),CreationDate,LastModifiedDate" | Out-File -FilePath $outputFile -Encoding utf8
-
 
 Write-Host "Adding all users documents and desktop directory to the list"
 $items = Get-ChildItem -Path "C:\Users"
