@@ -4,9 +4,22 @@
 
 .DESCRIPTION
     Collect all LNK files
-    Add user directories to $directories
+    Add user directories to $target_directories
     Change $outputFile before starting the script
 #>
+
+# Change to your user
+$user = "IA_QUA_ENG"
+# Change to where the hunt files are extracted
+$directory_to_store_output = "C:\Users\$user\Documents\security-screening\hunt"
+
+# Target directory and type of extensions to look for
+$target_directories = @("c:\Users\", "d:\")
+$target_fileextensions = @(".lnk")
+
+
+$security_screening_folder = "*security-screening*"
+
 
 # Function to process files in a directory recursively
 function Process-FilesRecursively {
@@ -21,13 +34,15 @@ function Process-FilesRecursively {
     # Loop through each item
     foreach ($item in $items) {        
         if ($item -is [System.IO.FileInfo]) {
-            if ($item.Extension -in $fileextensions) {
+            if ($item.Extension -in $target_fileextensions) {
                 Process-File $item
             }
         }
         elseif ($item -is [System.IO.DirectoryInfo]) {
             # If it's a directory, recursively process its files
-            Process-FilesRecursively -directory $item.FullName -fileextensions $fileextensions
+            if ($directory -notlike $security_screening_folder) {
+                Process-FilesRecursively -directory $item.FullName -fileextensions $target_fileextensions
+            }
         }
     }
 }
@@ -38,41 +53,37 @@ function Process-File {
         [System.IO.FileInfo]$file
     )
 
-    $fullPath = $file.FullName
-    $name = $file.Name
-    $size = $file.Length
-    $extension = $file.Extension
-    $creationDate = $file.CreationTime
-    $lastModifiedDate = $file.LastWriteTime
+    if ($file.FullName -notlike $security_screening_folder) {
+        $fullPath = $file.FullName
+        $name = $file.Name
+        $size = $file.Length
+        $extension = $file.Extension
+        $creationDate = $file.CreationTime
+        $lastModifiedDate = $file.LastWriteTime
 
-    # Create a Shell object to access the .lnk file
-    $shell = New-Object -ComObject WScript.Shell
-    $shortcut = $shell.CreateShortcut($fullPath)
+        # Create a Shell object to access the .lnk file
+        $shell = New-Object -ComObject WScript.Shell
+        $shortcut = $shell.CreateShortcut($fullPath)
 
-    # Get the target path from the .lnk file
-    $target = $shortcut.TargetPath
+        # Get the target path from the .lnk file
+        $target = $shortcut.TargetPath
 
-    "$fullPath,$name,$extension,$size,$creationDate,$lastModifiedDate,$target" | Out-File -FilePath $outputFile -Encoding utf8 -Append
-
+        "$fullPath,$name,$extension,$size,$creationDate,$lastModifiedDate,$target" | Out-File -FilePath $outputFile -Encoding utf8 -Append
+    }
 }
 
-$user = "public"
 
 # Ensure the hunt directory exists
-$huntDir = "C:\Users\$user\Desktop\hunt"
-if (-not (Test-Path -Path $huntDir)) {
-    New-Item -ItemType Directory -Path $huntDir | Out-Null
+if (-not (Test-Path -Path $directory_to_store_output)) {
+    New-Item -ItemType Directory -Path $directory_to_store_output | Out-Null
 }
 
-$outputFile = "c:\Users\$user\Desktop\hunt\hunt-lnk-files.csv"
+$outputFile = "$directory_to_store_output\hunt-lnk-files.csv"
 Remove-Item $outputFile -ErrorAction SilentlyContinue
 "FullPath,Name,Extension,Size (bytes),CreationDate,LastModifiedDate,LNKTarget" | Out-File -FilePath $outputFile -Encoding utf8
 Write-Host "Writing to $outputFile"
 
 # Define directory path and common extensions
-$directories = @("c:\Users\Public\Desktop\")
-$fileextensions = @(".lnk")
-
 Write-Host "Adding all users documents and desktop directory to the list"
 $items = Get-ChildItem -Path "C:\Users"
 foreach ($item in $items) {
@@ -81,18 +92,20 @@ foreach ($item in $items) {
         $documentsPath = Join-Path -Path $item.FullName -ChildPath "Documents"
 
         if (Test-Path $desktopPath) {
-            $directories += $desktopPath
+            $target_directories += $desktopPath
         }
         if (Test-Path $documentsPath) {
-            $directories += $documentsPath
+            $target_directories += $documentsPath
         }
     }
 }
 
 # Process files in each directory
-foreach ($directory in $directories) {
+foreach ($directory in $target_directories) {
     Write-Host " working on $directory"
-    Process-FilesRecursively -directory $directory -fileextensions $fileextensions
+    if ($directory -notlike $security_screening_folder) {
+        Process-FilesRecursively -directory $directory -fileextensions $target_fileextensions
+    }
 }
  
 Write-Host "Finished"
