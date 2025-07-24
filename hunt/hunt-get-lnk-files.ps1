@@ -9,7 +9,7 @@
 #>
 
 # Change to your user
-$user = "IA_QUA_ENG"
+$user = "public"
 # Change to where the hunt files are extracted
 $directory_to_store_output = "C:\Users\$user\Documents\security-screening\hunt"
 
