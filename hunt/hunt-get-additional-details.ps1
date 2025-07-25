@@ -6,23 +6,26 @@
 
 #>
 
+# Change to your user
 $user = "public"
+# Change to where the hunt files are extracted
+$directory_to_store_output = "C:\Users\$user\Documents\security-screening-master\security-screening-master\hunt"
+
 
 # Ensure the hunt directory exists
-$huntDir = "C:\Users\$user\Desktop\hunt"
-if (-not (Test-Path -Path $huntDir)) {
-    New-Item -ItemType Directory -Path $huntDir | Out-Null
+if (-not (Test-Path -Path $directory_to_store_output)) {
+    New-Item -ItemType Directory -Path $directory_to_store_output | Out-Null
 }
 
-$schtaksOutput = "C:\Users\$user\Desktop\hunt\hunt-SchTasks.csv"
-$processOutput = "C:\Users\$user\Desktop\hunt\hunt-Process.csv"
-$eventFilterOutput = "C:\Users\$user\Desktop\hunt\hunt-EventFilters.csv"
-$wmiProcessOutput = "C:\Users\$user\Desktop\hunt\hunt-WMIProcesses.csv"
-$servicesOutput = "C:\Users\$user\Desktop\hunt\hunt-Services.csv"
-$networkConnectionsOutput = "C:\Users\$user\Desktop\hunt\hunt-NetworkConnections.csv"
-$networkConnectionsOutputOld = "C:\Users\$user\Desktop\hunt\hunt-NetworkConnectionsOld.csv"
-$autorunsOutput = "C:\Users\$user\Desktop\hunt\hunt-autorunsc64.csv"
-$registryOutput = "C:\Users\$user\Desktop\hunt\hunt-registry.csv"
+$schtaksOutput = "$directory_to_store_output\output-hunt-SchTasks.csv"
+$processOutput = "$directory_to_store_output\output-hunt-Process.csv"
+$eventFilterOutput = "$directory_to_store_output\output-hunt-EventFilters.csv"
+$wmiProcessOutput = "$directory_to_store_output\output-hunt-WMIProcesses.csv"
+$servicesOutput = "$directory_to_store_output\output-hunt-Services.csv"
+$networkConnectionsOutput = "$directory_to_store_output\output-hunt-NetworkConnections.csv"
+$networkConnectionsOutputOld = "$directory_to_store_output\output-hunt-NetworkConnectionsOld.csv"
+$autorunsOutput = "$directory_to_store_output\output-hunt-autorunsc64.csv"
+$registryOutput = "$directory_to_store_output\output-hunt-registry.csv"
 
 Write-Host "Autoruns"
 ..\supporttools\autorunsc64.exe /accepteula -a * -c -h -s '*' -nobanner >$autorunsOutput
