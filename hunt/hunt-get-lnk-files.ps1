@@ -11,7 +11,7 @@
 # Change to your user
 $user = "public"
 # Change to where the hunt files are extracted
-$directory_to_store_output = "C:\Users\$user\Documents\security-screening\hunt"
+$directory_to_store_output = "C:\Users\$user\Documents\security-screening-master\security-screening-master\hunt"
 
 # Target directory and type of extensions to look for
 $target_directories = @("c:\Users\", "d:\")
