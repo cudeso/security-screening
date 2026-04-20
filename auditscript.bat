@@ -1,6 +1,6 @@
 @ECHO OFF
 
-:: Audit script v14
+:: Audit script v15
 ::
 ::  v1 : Start
 ::  v2 : Fixed fetching all users ; include localgroups
@@ -33,6 +33,10 @@
 ::  v13: (ThomasD) Add check for domain_name when setting aud_dir and when use_fqdn_instead_of_computername==1
 ::  v14: Add '.exe' to avoid name confusions
 ::       Add defender data
+::  v15: Add consolidated security status check (security_status_check.txt):
+::       SMBv1, NetBIOS, RDP, AutoLogon, Network Shares/Null Sessions,
+::       WDigest, UAC, Print Spooler, LSA Protection, NTP, Windows Update,
+::       Stored Credentials - each with risk description and expected values
 
 set debug=1
 set create_zip=1
@@ -449,6 +453,212 @@ if %debug%==1 echo "defender data"
 powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Get-MpComputerStatus | Select-Object AMServiceEnabled, AntispywareEnabled, AntivirusEnabled, RealTimeProtectionEnabled, LastFullScanTime | Export-Csv -Path 'defender-MpComputerStatus.csv' -NoTypeInformation"
 
 powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Get-MpPreference | Select-Object -ExpandProperty ExclusionPath | ForEach-Object { [PSCustomObject]@{ ExclusionPath = $_ } } | Export-Csv -Path 'defenfder-ExclusionPaths.csv' -NoTypeInformation"
+
+
+:: Step 23
+:: Security and compliance status checks
+if %debug%==1 echo "security status checks"
+set ssc=security_status_check.txt
+
+echo ============================================================ > %ssc%
+echo  SECURITY STATUS CHECK >> %ssc%
+echo  Host: %COMPUTERNAME% / %FQDN% >> %ssc%
+echo ============================================================ >> %ssc%
+echo. >> %ssc%
+
+echo ** SMBv1 ** >> %ssc%
+echo Risk: RCE via EternalBlue/MS17-010, used by WannaCry and NotPetya. >> %ssc%
+echo Secure: SMB1 = 0x0. mrxsmb10 driver stopped or absent. >> %ssc%
+echo Note: if SMB1 value is not found, SMBv1 is ENABLED (default). >> %ssc%
+echo ------------------------------------------------------------ >> %ssc%
+echo --- Secure: SMB1 should be REG_DWORD 0x0 >> %ssc%
+echo --- Current: >> %ssc%
+reg query "HKLM\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters" /v SMB1 >> %ssc% 2>&1
+echo. >> %ssc%
+echo --- Secure: mrxsmb10 should be STOPPED or not found >> %ssc%
+echo --- Current: >> %ssc%
+sc query mrxsmb10 >> %ssc% 2>&1
+echo. >> %ssc%
+echo --- Secure: LanmanWorkstation should NOT depend on mrxsmb10 >> %ssc%
+echo --- Current: >> %ssc%
+sc qc lanmanworkstation >> %ssc% 2>&1
+echo. >> %ssc%
+
+echo ** NetBIOS ** >> %ssc%
+echo Risk: NBNS poisoning and relay attacks on ports 137-139. >> %ssc%
+echo Secure: TcpipNetbiosOptions = 2 (disabled) on all adapters. >> %ssc%
+echo ------------------------------------------------------------ >> %ssc%
+echo --- Secure: all adapters should show 2 >> %ssc%
+echo --- Current: >> %ssc%
+wmic nicconfig get Description,TcpipNetbiosOptions > "%TEMP%\ssc_netbios.tmp" 2>&1
+type "%TEMP%\ssc_netbios.tmp" >> %ssc%
+del "%TEMP%\ssc_netbios.tmp" >nul 2>&1
+echo. >> %ssc%
+echo --- Secure: NetbiosOptions should be 0x2 per interface >> %ssc%
+echo --- Current: >> %ssc%
+reg query "HKLM\SYSTEM\CurrentControlSet\Services\NetBT\Parameters\Interfaces" /s /v NetbiosOptions >> %ssc% 2>&1
+echo. >> %ssc%
+
+echo ** RDP ** >> %ssc%
+echo Risk: brute-force, BlueKeep (CVE-2019-0708) when NLA is not enforced. >> %ssc%
+echo Secure: fDenyTSConnections=1 if RDP not needed. >> %ssc%
+echo         If RDP needed: UserAuthentication=1, SecurityLayer=2. >> %ssc%
+echo ------------------------------------------------------------ >> %ssc%
+echo --- Secure: 0x1 (RDP disabled), 0x0 means RDP is enabled >> %ssc%
+echo --- Current fDenyTSConnections: >> %ssc%
+reg query "HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections >> %ssc% 2>&1
+echo. >> %ssc%
+echo --- Secure: 0x1 (NLA required) >> %ssc%
+echo --- Current UserAuthentication: >> %ssc%
+reg query "HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp" /v UserAuthentication >> %ssc% 2>&1
+echo. >> %ssc%
+echo --- Current PortNumber: >> %ssc%
+reg query "HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp" /v PortNumber >> %ssc% 2>&1
+echo. >> %ssc%
+echo --- Secure: 0x2 (SSL/TLS). 0x0=RDP native, 0x1=negotiate >> %ssc%
+echo --- Current SecurityLayer: >> %ssc%
+reg query "HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp" /v SecurityLayer >> %ssc% 2>&1
+echo. >> %ssc%
+
+echo ** AutoLogon ** >> %ssc%
+echo Risk: cleartext password stored in registry, readable by any local user. >> %ssc%
+echo Secure: AutoAdminLogon=0 or not found. DefaultPassword not found. >> %ssc%
+echo Note: values not found = not configured = safe for this check. >> %ssc%
+echo ------------------------------------------------------------ >> %ssc%
+echo --- Secure: should be 0 or not found >> %ssc%
+echo --- Current AutoAdminLogon: >> %ssc%
+reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" /v AutoAdminLogon >> %ssc% 2>&1
+echo. >> %ssc%
+echo --- Current DefaultUserName: >> %ssc%
+reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" /v DefaultUserName >> %ssc% 2>&1
+echo. >> %ssc%
+echo --- Secure: should NOT be found (cleartext password!) >> %ssc%
+echo --- Current DefaultPassword: >> %ssc%
+reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" /v DefaultPassword >> %ssc% 2>&1
+echo. >> %ssc%
+echo --- Current DefaultDomainName: >> %ssc%
+reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" /v DefaultDomainName >> %ssc% 2>&1
+echo. >> %ssc%
+
+echo ** Network Shares / Null Sessions ** >> %ssc%
+echo Risk: open shares and null sessions enable lateral movement and recon. >> %ssc%
+echo Secure: RestrictAnonymous=1 or 2, RestrictAnonymousSAM=1, >> %ssc%
+echo         EveryoneIncludesAnonymous=0. >> %ssc%
+echo ------------------------------------------------------------ >> %ssc%
+echo --- Current shares: >> %ssc%
+net share >> %ssc% 2>&1
+echo. >> %ssc%
+echo --- Secure: 0x1 (use 0x1 on DCs, 0x2 can break domain trusts) >> %ssc%
+echo --- Current RestrictAnonymous: >> %ssc%
+reg query "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v RestrictAnonymous >> %ssc% 2>&1
+echo. >> %ssc%
+echo --- Secure: 0x1 >> %ssc%
+echo --- Current RestrictAnonymousSAM: >> %ssc%
+reg query "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v RestrictAnonymousSAM >> %ssc% 2>&1
+echo. >> %ssc%
+echo --- Secure: 0x0 >> %ssc%
+echo --- Current EveryoneIncludesAnonymous: >> %ssc%
+reg query "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v EveryoneIncludesAnonymous >> %ssc% 2>&1
+echo. >> %ssc%
+
+echo ** WDigest ** >> %ssc%
+echo Risk: passwords stored in cleartext in LSASS, extractable with Mimikatz. >> %ssc%
+echo Secure: UseLogonCredential=0 or not found. >> %ssc%
+echo Note: on pre-8.1/2012R2, not found means ENABLED (insecure). >> %ssc%
+echo       on 8.1/2012R2+, not found means DISABLED (secure). >> %ssc%
+echo       Compare with OS version from systeminfo.txt. >> %ssc%
+echo ------------------------------------------------------------ >> %ssc%
+echo --- Secure: 0x0 or not found (on 8.1/2012R2 and newer) >> %ssc%
+echo --- Current UseLogonCredential: >> %ssc%
+reg query "HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\WDigest" /v UseLogonCredential >> %ssc% 2>&1
+echo. >> %ssc%
+
+echo ** UAC ** >> %ssc%
+echo Risk: without UAC all processes run fully elevated, no prompt for malware. >> %ssc%
+echo Secure: EnableLUA=1, ConsentPromptBehaviorAdmin=2 or higher. >> %ssc%
+echo ------------------------------------------------------------ >> %ssc%
+echo --- Secure: 0x1 >> %ssc%
+echo --- Current EnableLUA: >> %ssc%
+reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v EnableLUA >> %ssc% 2>&1
+echo. >> %ssc%
+echo --- Secure: 0x2 or higher (0x0=no prompt, 0x5=default) >> %ssc%
+echo --- Current ConsentPromptBehaviorAdmin: >> %ssc%
+reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v ConsentPromptBehaviorAdmin >> %ssc% 2>&1
+echo. >> %ssc%
+
+echo ** Print Spooler ** >> %ssc%
+echo Risk: PrintNightmare (CVE-2021-34527) allows RCE as SYSTEM. >> %ssc%
+echo Secure: spooler STOPPED and DISABLED unless printing is needed. >> %ssc%
+echo ------------------------------------------------------------ >> %ssc%
+echo --- Secure: STATE should be STOPPED >> %ssc%
+echo --- Current: >> %ssc%
+sc query spooler >> %ssc% 2>&1
+echo. >> %ssc%
+echo --- Secure: START_TYPE should be DISABLED >> %ssc%
+echo --- Current: >> %ssc%
+sc qc spooler >> %ssc% 2>&1
+echo. >> %ssc%
+
+echo ** LSA Protection / Credential Guard ** >> %ssc%
+echo Risk: without RunAsPPL, Mimikatz reads passwords from LSASS memory. >> %ssc%
+echo Secure: RunAsPPL=1, EnableVirtualizationBasedSecurity=1. >> %ssc%
+echo Note: not found = not configured = unprotected. >> %ssc%
+echo ------------------------------------------------------------ >> %ssc%
+echo --- Secure: 0x1. Not found = unprotected >> %ssc%
+echo --- Current RunAsPPL: >> %ssc%
+reg query "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v RunAsPPL >> %ssc% 2>&1
+echo. >> %ssc%
+echo --- Secure: 0x1. Not found = not enabled >> %ssc%
+echo --- Current EnableVirtualizationBasedSecurity: >> %ssc%
+reg query "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard" /v EnableVirtualizationBasedSecurity >> %ssc% 2>&1
+echo. >> %ssc%
+
+echo ** NTP / Time Sync ** >> %ssc%
+echo Risk: clock drift breaks log correlation, forensics and Kerberos. >> %ssc%
+echo Secure: W32Time running, synced to DC or reliable NTP source. >> %ssc%
+echo ------------------------------------------------------------ >> %ssc%
+echo --- Secure: STATE should be RUNNING >> %ssc%
+echo --- Current: >> %ssc%
+sc query w32time >> %ssc% 2>&1
+echo. >> %ssc%
+echo --- Time configuration: >> %ssc%
+w32tm /query /configuration >> %ssc% 2>&1
+echo. >> %ssc%
+echo --- Time source: >> %ssc%
+w32tm /query /source >> %ssc% 2>&1
+echo. >> %ssc%
+echo --- Time sync status: >> %ssc%
+w32tm /query /status >> %ssc% 2>&1
+echo. >> %ssc%
+
+echo ** Windows Update / WSUS ** >> %ssc%
+echo Risk: unpatched systems exposed to known CVEs. >> %ssc%
+echo Secure: AUOptions=3 (auto download) or 4 (auto install). >> %ssc%
+echo Note: not found = managed via GPO or not configured. >> %ssc%
+echo       Check both local and policy paths below. >> %ssc%
+echo ------------------------------------------------------------ >> %ssc%
+echo --- Secure: 0x3 or 0x4. Not found = check policy path >> %ssc%
+echo --- Current AUOptions (local): >> %ssc%
+reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update" /v AUOptions >> %ssc% 2>&1
+echo. >> %ssc%
+echo --- Current AUOptions (policy): >> %ssc%
+reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" /v AUOptions >> %ssc% 2>&1
+echo. >> %ssc%
+echo --- Current WSUS server: >> %ssc%
+reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate" /v WUServer >> %ssc% 2>&1
+echo. >> %ssc%
+echo --- Current UseWUServer (1=WSUS active): >> %ssc%
+reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" /v UseWUServer >> %ssc% 2>&1
+echo. >> %ssc%
+
+echo ** Stored Credentials ** >> %ssc%
+echo Risk: cached credentials extractable with local access. >> %ssc%
+echo Secure: minimal entries, no stored passwords for privileged accounts. >> %ssc%
+echo ------------------------------------------------------------ >> %ssc%
+echo --- Current: >> %ssc%
+cmdkey /list >> %ssc% 2>&1
+echo. >> %ssc%
+echo ============================================================ >> %ssc%
 
 
 :: Step 99
